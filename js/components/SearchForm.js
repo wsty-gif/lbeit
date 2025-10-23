@@ -2,46 +2,56 @@ class SearchForm {
   constructor(container, onSearch) {
     this.container = container;
     this.onSearch = onSearch;
-    this.state = { suggestions: null };
     this.render();
   }
 
   async render() {
-    const { prefectures, keywords, categories, wages } = await DataService.distincts();
+    const { keywords, categories, wages } = await DataService.distincts();
+
+    // 都道府県リスト（固定）
+    const prefectures = [
+      "全て","北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
+      "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
+      "新潟県","富山県","石川県","福井県","山梨県","長野県",
+      "岐阜県","静岡県","愛知県","三重県",
+      "滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
+      "鳥取県","島根県","岡山県","広島県","山口県",
+      "徳島県","香川県","愛媛県","高知県",
+      "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
+    ];
 
     this.container.innerHTML = `
       <div class="bg-white rounded-xl shadow p-4 md:p-5">
-        <form id="searchForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
+        <form id="searchForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-          <!-- 都道府県（サジェスト） -->
-          <div class="relative">
+          <!-- 都道府県 -->
+          <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">都道府県</label>
-            <input id="prefectureInput" class="custom-select w-full" placeholder="例：兵庫県" autocomplete="off">
-            <div id="prefSuggest" class="suggest-box hidden"></div>
+            <select id="prefectureSelect" class="custom-select w-full">
+              ${prefectures.map(p => `<option value="${p}">${p}</option>`).join("")}
+            </select>
           </div>
 
-          <!-- 最寄駅/キーワード（サジェスト） -->
-          <div class="relative sm:col-span-2">
-            <label class="block text-sm font-semibold text-gray-700 mb-1">キーワード（店名・駅・カテゴリ）</label>
+          <!-- キーワード -->
+          <div class="sm:col-span-2 relative">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">キーワード</label>
             <input id="keywordInput" class="custom-select w-full" placeholder="例：伊丹駅／接客／カフェ" autocomplete="off">
             <div id="kwSuggest" class="suggest-box hidden"></div>
           </div>
 
-          <!-- 最低時給（候補） -->
-          <div class="relative">
+          <!-- 最低時給 -->
+          <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">最低時給</label>
             <input id="wageInput" type="number" class="custom-select w-full" placeholder="例：1200" list="wageList">
-            <datalist id="wageList">
-              ${wages.map(w=>`<option value="${w}">`).join("")}
-            </datalist>
+            <datalist id="wageList">${wages.map(w=>`<option value="${w}">`).join("")}</datalist>
           </div>
 
           <!-- 職種カテゴリ -->
-          <div class="relative lg:col-span-4">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">仕事のカテゴリ（任意）</label>
+          <div class="lg:col-span-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">仕事のカテゴリ</label>
             <div class="flex flex-wrap gap-2">
               <button type="button" data-cat="全て" class="cat-btn px-3 py-1.5 rounded-full border border-gray-300 bg-white text-sm font-medium">全て</button>
-              ${categories.map(c=>`
+              ${categories.map(c => `
                 <button type="button" data-cat="${c}" class="cat-btn px-3 py-1.5 rounded-full border border-gray-300 bg-white text-sm">${c}</button>
               `).join("")}
             </div>
@@ -58,13 +68,11 @@ class SearchForm {
       </div>
     `;
 
-    // サジェスト動作
-    const prefectureInput = this.container.querySelector("#prefectureInput");
-    const keywordInput    = this.container.querySelector("#keywordInput");
-    const prefBox         = this.container.querySelector("#prefSuggest");
-    const kwBox           = this.container.querySelector("#kwSuggest");
-    const categoryInput   = this.container.querySelector("#categoryInput");
+    const keywordInput = this.container.querySelector("#keywordInput");
+    const kwBox = this.container.querySelector("#kwSuggest");
+    const categoryInput = this.container.querySelector("#categoryInput");
 
+    // サジェスト動作
     const showSuggest = (box, items, onPick) => {
       if (!items.length) { box.classList.add("hidden"); return; }
       box.innerHTML = items.slice(0,10).map(v=>`<div class="suggest-item">${v}</div>`).join("");
@@ -73,24 +81,12 @@ class SearchForm {
         el.addEventListener("click", ()=>{ onPick(el.textContent); box.classList.add("hidden"); });
       });
     };
-
     const filterArr = (arr, q) => arr.filter(v => v && v.toLowerCase().includes(q.toLowerCase()));
-
-    prefectureInput.addEventListener("input", e=>{
-      const q = e.target.value.trim();
-      if (!q) { prefBox.classList.add("hidden"); return; }
-      showSuggest(prefBox, filterArr(prefectures, q), (val)=> prefectureInput.value = val);
-    });
-    prefectureInput.addEventListener("blur", ()=> setTimeout(()=>prefBox.classList.add("hidden"), 120));
 
     keywordInput.addEventListener("input", e=>{
       const q = e.target.value.trim();
       if (!q) { kwBox.classList.add("hidden"); return; }
-      showSuggest(kwBox, filterArr(keywords, q), (val)=> {
-        // 追記型：既存キーワードにスペース区切りで追加
-        if (keywordInput.value && !keywordInput.value.endsWith(" ")) keywordInput.value += " ";
-        keywordInput.value += val;
-      });
+      showSuggest(kwBox, filterArr(keywords, q), (val)=> keywordInput.value = val);
     });
     keywordInput.addEventListener("blur", ()=> setTimeout(()=>kwBox.classList.add("hidden"), 120));
 
@@ -107,8 +103,8 @@ class SearchForm {
     this.container.querySelector("#searchForm").addEventListener("submit", (e)=>{
       e.preventDefault();
       const payload = {
-        prefecture: prefectureInput.value.trim(),
-        minWage: this.container.querySelector("#wageInput").value.trim(),
+        prefecture: document.getElementById("prefectureSelect").value,
+        minWage: document.getElementById("wageInput").value,
         keyword: keywordInput.value.trim(),
         category: categoryInput.value
       };
