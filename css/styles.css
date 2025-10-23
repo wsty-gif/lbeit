@@ -641,3 +641,12 @@ html, body {
   object-fit: cover;
   border-radius: 7px;
 }
+
+/* 入力UIの視認性UP（スマホ優先） */
+.custom-select{
+  width:100%;border:1px solid #d1d5db;border-radius:10px;height:44px;padding:0 12px;font-size:16px;background:#fff
+}
+.custom-select:focus{outline:none;box-shadow:0 0 0 3px rgba(251,146,60,.25)}
+
+/* 画像角丸陰影（高齢者にも視認性◎） */
+img{image-rendering:auto}
