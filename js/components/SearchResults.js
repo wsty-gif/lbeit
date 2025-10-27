@@ -29,22 +29,20 @@ class SearchResults {
     });
   }
 
-  // 指定：店名＋「都道府県市区町村 / 最寄駅」＋カテゴリ＋時給
   card(acc) {
-    const catText = acc.categories.join("、 ");
-    const areaText = `${acc.prefecture}${acc.city ? acc.city : ""} ⁄ ${acc.station || "最寄駅未記載"}`;
+    const area = `${acc.prefecture}${acc.city ? acc.city : ""} ⁄ ${acc.station || "最寄駅未記載"}`;
+    const cats = (acc.categories || []).join("、 ");
+    const firstImage = (acc.image || "").split(",")[0]?.trim() || "https://via.placeholder.com/800x500?text=No+Image";
     return `
       <div class="job-card bg-white rounded-xl shadow hover:-translate-y-0.5 transition cursor-pointer overflow-hidden" data-id="${acc.id}">
-        <div class="relative">
-          <img src="${acc.image || "https://via.placeholder.com/800x500?text=No+Image"}" alt="${acc.name}" class="w-full h-44 object-cover">
-        </div>
+        <img src="${firstImage}" alt="${acc.name}" class="w-full h-44 object-cover">
         <div class="p-4">
           <h3 class="text-base font-bold text-gray-900 mb-1 line-clamp-2">${acc.name}</h3>
-          <p class="text-xs text-gray-600 mb-1">${areaText}</p>
-          <p class="text-sm text-gray-700 mb-1 clip-2">${catText}</p>
+          <p class="text-xs text-gray-600 mb-1">${area}</p>
+          <p class="text-sm text-gray-700 mb-1 line-clamp-2">${cats}</p>
           <p class="text-orange-600 font-semibold">💰 時給 ${acc.wage.toLocaleString()}円〜</p>
           <div class="mt-3 text-center">
-            <a href="https://line.me/R/ti/p/@${acc.lineId}" target="_blank" class="inline-block bg-green-500 text-white rounded-lg px-4 py-2 text-sm font-bold hover:bg-green-600">
+            <a href="https://line.me/R/ti/p/@${acc.lineId || ""}" target="_blank" class="inline-block bg-green-500 text-white rounded-lg px-4 py-2 text-sm font-bold hover:bg-green-600">
               LINEで応募する
             </a>
           </div>

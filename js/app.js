@@ -21,8 +21,12 @@ const app = async () => {
 
   new SearchForm(formEl, onSearch);
 
-  // 初回（条件なし）
-  onSearch({ keyword:"", locations:[], jobCategories:[], preferences:[], popular:[], annualMin:"", employments:[] });
+  // 初回（条件なしで全件）
+  onSearch({
+    keyword:"", locations:[], jobCategories:[],
+    preferences:[], popular:[], annualMin:"",
+    employments:[]
+  });
 };
 
 window.addEventListener("DOMContentLoaded", app);
