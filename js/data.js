@@ -1,27 +1,37 @@
-// ▼ シートのCSV直読み（CORS対策が必要：localhostで提供 or GAS化）
-// 例: python -m http.server 8000 で http://localhost:8000 から開く
+// ==========================
+// data.js（修正版）
+// ==========================
+
+// ▼ GoogleスプレッドシートのCSV URL
+// ※ file:// では CORS エラーになるので、必ず http://localhost などサーバー経由で開いてください。
 const SPREADSHEET_JSON_URL =
   "https://docs.google.com/spreadsheets/d/1cfMnjPEunT8veH0JJxC-kAAi_koGyNPutP5gLaeTMT8/gviz/tq?tqx=out:csv";
 
-// ▼ 全国市区町村（GitHub公開JSON：CORS可）
+// ▼ 全国市区町村データ（信頼性が高くCORS対応しているGitHub公開データ）
 const MUNICIPAL_JSON =
-  "https://raw.githubusercontent.com/OtterSou/japan-municipalities/main/data/municipalities.json";
+  "https://raw.githubusercontent.com/geolonia/japanese-addresses/master/data/ja.json";
 
 const DataService = {
   _cache: null,
   _cities: null,
 
+  // ====== スプレッドシートから求人情報を読み込み ======
   async load() {
     if (this._cache) return this._cache;
+
     const res = await fetch(SPREADSHEET_JSON_URL, { cache: "no-store" });
     const text = await res.text();
     const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
 
     const norm = (v) => (v || "").toString().trim();
-    const split = (v) => norm(v).split(",").map(s=>s.trim()).filter(Boolean);
+    const split = (v) =>
+      norm(v)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
     const toInt = (v) => parseInt(norm(v) || "0", 10) || 0;
 
-    const rows = parsed.data.map(r => ({
+    const rows = parsed.data.map((r) => ({
       id: norm(r["id"]),
       name: norm(r["店舗名"]),
       prefecture: norm(r["都道府県"]),
@@ -40,122 +50,150 @@ const DataService = {
       externalUrl: norm(r["外部URL"]),
       lineId: norm(r["LINE_ID"]),
       image: norm(r["画像URL（カンマ区切り）"] || r["画像URL"]),
-      features: split(r["こだわり（カンマ区切り）"] || r["こだわり"])
+      features: split(r["こだわり（カンマ区切り）"] || r["こだわり"]),
     }));
 
     this._cache = rows;
     return rows;
   },
 
+  // ====== 全国市区町村データを取得 ======
   async loadCities() {
     if (this._cities) return this._cities;
-    const res = await fetch(MUNICIPAL_JSON, { cache: "force-cache" });
+
+    const res = await fetch(MUNICIPAL_JSON);
     const json = await res.json();
+
     const byPref = {};
-    json.forEach(x => {
-      const pref = x.prefecture_kanji;
-      const city = x.city_kanji;
+    json.forEach((x) => {
+      const pref = x.prefecture;
+      const city = x.city;
       if (!byPref[pref]) byPref[pref] = [];
-      if (!byPref[pref].includes(city)) byPref[pref].push(city);
+      if (city && !byPref[pref].includes(city)) byPref[pref].push(city);
     });
-    Object.keys(byPref).forEach(p => byPref[p].sort());
+    Object.keys(byPref).forEach((p) => byPref[p].sort());
     this._cities = byPref;
+
     return byPref;
   },
 
-  // 検索：各チェック群は OR、異なる項目間は AND
+  // ====== 検索（AND＋OR複合対応） ======
   async search(filters) {
     const rows = await this.load();
     let list = rows.slice();
 
-    // キーワード
+    // キーワード検索（部分一致）
     if (filters.keyword) {
       const q = filters.keyword.toLowerCase();
-      list = list.filter(r =>
-        [r.name, r.station, r.jobLabel, r.city, r.address, ...r.categories, ...r.features]
-          .some(t => (t||"").toLowerCase().includes(q))
+      list = list.filter((r) =>
+        [r.name, r.station, r.jobLabel, r.city, r.address, ...r.categories, ...r.features].some((t) =>
+          (t || "").toLowerCase().includes(q)
+        )
       );
     }
 
-    // 勤務地（pref/city を複数 OR）
+    // 勤務地（都道府県・市区町村をOR検索）
     if (filters.locations?.length) {
-      list = list.filter(r => {
-        return filters.locations.some(sel => {
+      list = list.filter((r) => {
+        return filters.locations.some((sel) => {
           if (sel.type === "pref") return r.prefecture === sel.pref;
           return r.prefecture === sel.pref && r.city === sel.city;
         });
       });
     }
 
-    // 職種 OR
+    // 職種カテゴリ（OR）
     if (filters.jobCategories?.length) {
-      list = list.filter(r => r.categories.some(c => filters.jobCategories.includes(c)));
+      list = list.filter((r) => r.categories.some((c) => filters.jobCategories.includes(c)));
     }
 
-    // こだわり OR
+    // こだわり条件（OR）
     if (filters.preferences?.length) {
-      list = list.filter(r => r.features.some(f => filters.preferences.includes(f)));
+      list = list.filter((r) => r.features.some((f) => filters.preferences.includes(f)));
     }
 
-    // 人気の条件 OR（features に含まれると想定）
+    // 人気条件（OR）
     if (filters.popular?.length) {
-      list = list.filter(r => r.features.some(f => filters.popular.includes(f)));
+      list = list.filter((r) => r.features.some((f) => filters.popular.includes(f)));
     }
 
-    // 年収（万円）
+    // 年収下限
     if (filters.annualMin) {
-      list = list.filter(r => r.annual && r.annual >= Number(filters.annualMin));
+      list = list.filter((r) => r.annual && r.annual >= Number(filters.annualMin));
     }
 
-    // 雇用形態 OR（カンマ区切り対応）
+    // 雇用形態（OR）
     if (filters.employments?.length) {
-      list = list.filter(r => {
-        const vals = r.employment.split(",").map(s=>s.trim());
-        return vals.some(v => filters.employments.includes(v));
+      list = list.filter((r) => {
+        const vals = r.employment.split(",").map((s) => s.trim());
+        return vals.some((v) => filters.employments.includes(v));
       });
     }
 
     return list;
   },
 
+  // ====== 選択肢データを生成 ======
   async distincts() {
     const rows = await this.load();
-    const jobCategories = [...new Set(rows.flatMap(r=>r.categories))].sort();
-    const preferences  = [...new Set(rows.flatMap(r=>r.features))].sort();
+    const jobCategories = [...new Set(rows.flatMap((r) => r.categories))].sort();
+    const preferences = [...new Set(rows.flatMap((r) => r.features))].sort();
 
-    const POPULAR = ["高収入","未経験OK","日払いOK","駅近","交通費全額","残業なし","シフト自由","深夜手当","無料送迎"];
-    const ANNUALS = ["200","300","400","500","600","700","800","900","1000"];
-    const EMPLOYMENTS = ["正社員","派遣社員","業務委託","契約社員","アルバイト"];
+    const POPULAR = [
+      "高収入",
+      "未経験OK",
+      "日払いOK",
+      "駅近",
+      "交通費全額",
+      "残業なし",
+      "シフト自由",
+      "深夜手当",
+      "無料送迎",
+    ];
+    const ANNUALS = ["200", "300", "400", "500", "600", "700", "800", "900", "1000"];
+    const EMPLOYMENTS = ["正社員", "派遣社員", "業務委託", "契約社員", "アルバイト"];
 
-    // 大括りの地域ブロック
+    // 地域ブロック
     const REGION_PREFS = {
-      "北海道・東北": ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県"],
-      "関東": ["茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県"],
-      "中部": ["新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県"],
-      "近畿": ["三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県"],
-      "中国": ["鳥取県","島根県","岡山県","広島県","山口県"],
-      "四国": ["徳島県","香川県","愛媛県","高知県"],
-      "九州・沖縄": ["福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"]
+      "北海道・東北": ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県"],
+      "関東": ["茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県"],
+      "中部": ["新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県"],
+      "近畿": ["三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県"],
+      "中国": ["鳥取県", "島根県", "岡山県", "広島県", "山口県"],
+      "四国": ["徳島県", "香川県", "愛媛県", "高知県"],
+      "九州・沖縄": ["福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"],
     };
 
     const citiesByPref = await this.loadCities();
 
-    // こだわり条件の大見出し（簡易グルーピング：未マッチは「その他」に入れる）
+    // こだわり条件の分類
     const PREFERENCE_GROUPS = {
-      "人気条件": ["高収入","未経験OK","日払いOK","シフト自由","駅近","交通費全額"],
-      "求める人材": ["主婦(夫)歓迎","フリーター歓迎","学歴不問","ブランクOK","シニア応援"],
-      "職場環境": ["残業なし","服装自由","髪色自由","ネイルOK","車通勤OK"],
-      "勤務地・アクセス": ["駅近","無料送迎","バイク通勤OK","自転車OK"],
-      "勤務時間・休日": ["週1〜OK","週2・3〜OK","土日祝休み","平日のみOK","夜勤"],
-      "給与": ["高収入","昇給あり","前払いOK"],
-      "待遇・福利厚生": ["社会保険あり","交通費全額","社割あり","社員登用あり"],
-      "仕事の特徴": ["単純作業","体を動かす","接客あり","デスクワーク"],
-      "募集・選考の特徴": ["即日勤務OK","面接時マスクOK","履歴書不要"],
-      "その他": [] // 後で充填
+      人気条件: ["高収入", "未経験OK", "日払いOK", "シフト自由", "駅近", "交通費全額"],
+      求める人材: ["主婦(夫)歓迎", "フリーター歓迎", "学歴不問", "ブランクOK", "シニア応援"],
+      職場環境: ["残業なし", "服装自由", "髪色自由", "ネイルOK", "車通勤OK"],
+      "勤務地・アクセス": ["駅近", "無料送迎", "バイク通勤OK", "自転車OK"],
+      "勤務時間・休日": ["週1〜OK", "週2・3〜OK", "土日祝休み", "平日のみOK", "夜勤"],
+      給与: ["高収入", "昇給あり", "前払いOK"],
+      "待遇・福利厚生": ["社会保険あり", "交通費全額", "社割あり", "社員登用あり"],
+      仕事の特徴: ["単純作業", "体を動かす", "接客あり", "デスクワーク"],
+      "募集・選考の特徴": ["即日勤務OK", "面接時マスクOK", "履歴書不要"],
+      その他: [],
     };
-    const allKnown = new Set(Object.values(PREFERENCE_GROUPS).flat());
-    preferences.forEach(p => { if (!allKnown.has(p)) PREFERENCE_GROUPS["その他"].push(p); });
 
-    return { REGION_PREFS, citiesByPref, jobCategories, preferences, POPULAR, ANNUALS, EMPLOYMENTS, PREFERENCE_GROUPS };
-  }
+    const allKnown = new Set(Object.values(PREFERENCE_GROUPS).flat());
+    preferences.forEach((p) => {
+      if (!allKnown.has(p)) PREFERENCE_GROUPS["その他"].push(p);
+    });
+
+    return {
+      REGION_PREFS,
+      citiesByPref,
+      jobCategories,
+      preferences,
+      POPULAR,
+      ANNUALS,
+      EMPLOYMENTS,
+      PREFERENCE_GROUPS,
+    };
+  },
 };
