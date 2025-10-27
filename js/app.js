@@ -1,7 +1,7 @@
 const app = async () => {
-  const formEl   = document.getElementById("search-form");
+  const formEl = document.getElementById("search-form");
   const resultEl = document.getElementById("search-results");
-  const modalEl  = document.getElementById("detail-modal");
+  const modalEl = document.getElementById("detail-modal");
   const detailEl = document.getElementById("detail-content");
 
   const detail = new Detail(detailEl);
@@ -15,17 +15,9 @@ const app = async () => {
     results.show(list);
   };
 
-  // 先にフォームを描画
   new SearchForm(formEl, onSearch);
-
-  // フォーム描画完了を待ってから全件検索
-  setTimeout(() => {
-    onSearch({
-      keyword:"", locations:[], jobCategories:[],
-      preferences:[], popular:[], annualMin:"",
-      employments:[]
-    });
-  }, 50);
+  // 初期表示用ダミー検索（全件）
+  onSearch({ keyword: "", prefecture: "", city: "" });
 };
 
 window.addEventListener("DOMContentLoaded", app);
