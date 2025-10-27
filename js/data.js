@@ -1,5 +1,5 @@
 const SPREADSHEET_JSON_URL =
-  "https://script.google.com/macros/s/AKfycbyhGCkWKh7Ih2JbO5tkKFjCYxqUXEnFOMkJS8cLkykT_p7sM934zuR6l-rVbw5u9Z5_Og/exec";
+  "https://script.google.com/macros/s/AKfycbx-X_z4QK0RAJ7xc5WSIgRFcLHfZ0SszptrvAZIXIByjMjEA28e9C-VAkgnKONWrUvjig/exec";
 
 // 全国市区町村（GitHub公開JSON）
 const MUNICIPAL_JSON =
