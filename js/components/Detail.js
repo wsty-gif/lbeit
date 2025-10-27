@@ -11,14 +11,15 @@ class Detail {
       .replace(/\\n/g, "\n")
       .replace(/\n/g, "<br>");
 
-    // 画像配列
+    // ✅ カンマ区切り画像を配列化
     const images = (acc.image || "")
       .split(",")
       .map((url) => url.trim())
       .filter((url) => url);
 
-    // カルーセル
-    const slider = images.length ? `
+    // ✅ カルーセルHTML
+    const imageSlider = images.length
+      ? `
       <div class="relative overflow-hidden rounded-lg touch-pan-x select-none">
         <div class="flex transition-transform duration-300 ease-in-out" id="imgSlider">
           ${images.map(url => `
@@ -33,36 +34,40 @@ class Detail {
             <i data-lucide="chevron-right"></i>
           </button>
         ` : ""}
-      </div>` : "";
+      </div>`
+      : "";
 
+    // ✅ 長文の高さ制御
     const longSection = (title, body, id) => {
       const safeText = formatText(body);
       return `
         <div class="bg-white rounded-lg border p-4 mb-4">
           <p class="text-sm font-bold text-gray-800 mb-2">${title}</p>
-          <div id="${id}" class="text-sm text-gray-800 overflow-hidden relative max-h-48 transition-all duration-300" style="line-height:1.6;">
+          <div id="${id}" class="text-sm text-gray-800 overflow-hidden relative max-h-48 transition-all duration-300" style="line-height:1.5;">
             <div class="content-inner">${safeText || "未記載"}</div>
           </div>
           ${body && body.length > 200
-            ? `<button data-target="${id}" class="mt-2 text-blue-600 font-bold text-sm underline more-btn">もっと見る</button>`
+            ? `<button data-target="${id}" class="more-btn mt-2 text-blue-600 font-bold text-sm underline">もっと見る</button>`
             : ""}
         </div>
       `;
     };
 
+    // ✅ HTML構成
     this.container.innerHTML = `
       <div class="sticky top-0 p-3 border-b bg-white rounded-t-xl flex items-center justify-between">
         <button id="closeDetail" class="text-gray-600 hover:text-gray-900 flex items-center gap-1">
           <i data-lucide="arrow-left" class="w-4 h-4"></i><span>戻る</span>
         </button>
-        <a href="https://line.me/R/ti/p/@${acc.lineId || ""}" target="_blank" 
+        <a href="https://line.me/R/ti/p/@${acc.lineId}" target="_blank" 
            class="bg-green-500 hover:bg-green-600 text-white text-sm font-bold px-3 py-2 rounded-lg">
            LINEで応募
         </a>
       </div>
 
       <div class="p-4 space-y-4">
-        ${slider}
+        ${imageSlider}
+
         <div>
           <h2 class="text-xl font-bold text-gray-900 mt-2">${acc.name}</h2>
           <p class="text-sm text-gray-600 mt-1">${areaText}</p>
@@ -87,7 +92,7 @@ class Detail {
       </div>
     `;
 
-    // もっと見る
+    // ✅ 「もっと見る」ボタン処理
     this.container.querySelectorAll(".more-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const target = this.container.querySelector("#" + btn.dataset.target);
@@ -96,34 +101,46 @@ class Detail {
       });
     });
 
-    // 画像スライダー（クリック＋スワイプ）
+    // ✅ 画像カルーセル（クリック＋スワイプ対応）
     if (images.length > 1) {
-      const sliderEl = this.container.querySelector("#imgSlider");
+      const slider = this.container.querySelector("#imgSlider");
       const prev = this.container.querySelector("#prevImg");
       const next = this.container.querySelector("#nextImg");
       let index = 0;
+
       const move = (dir) => {
         index = (index + dir + images.length) % images.length;
-        sliderEl.style.transform = `translateX(-${index * 100}%)`;
+        slider.style.transform = `translateX(-${index * 100}%)`;
       };
+
+      // ボタン操作
       prev?.addEventListener("click", () => move(-1));
       next?.addEventListener("click", () => move(1));
 
-      let startX = 0, endX = 0;
-      sliderEl.addEventListener("touchstart", (e) => { startX = e.touches[0].clientX; });
-      sliderEl.addEventListener("touchmove",  (e) => { endX = e.touches[0].clientX; });
-      sliderEl.addEventListener("touchend",   () => {
+      // 🟩 スワイプ操作追加
+      let startX = 0;
+      let endX = 0;
+
+      slider.addEventListener("touchstart", (e) => {
+        startX = e.touches[0].clientX;
+      });
+
+      slider.addEventListener("touchmove", (e) => {
+        endX = e.touches[0].clientX;
+      });
+
+      slider.addEventListener("touchend", () => {
         const diff = endX - startX;
-        if (Math.abs(diff) > 50) move(diff > 0 ? -1 : 1);
+        if (Math.abs(diff) > 50) {
+          if (diff > 0) move(-1); // 右スワイプ → 前の画像
+          else move(1);           // 左スワイプ → 次の画像
+        }
         startX = endX = 0;
       });
     }
 
-    // 閉じる
-    document.getElementById("detail-close")?.addEventListener("click", ()=>{
-      document.getElementById("detail-modal").classList.add("hidden");
-    });
-    this.container.querySelector("#closeDetail")?.addEventListener("click", ()=>{
+    // ✅ 戻るボタン
+    this.container.querySelector("#closeDetail").addEventListener("click", () => {
       document.getElementById("detail-modal").classList.add("hidden");
     });
 
