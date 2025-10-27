@@ -19,14 +19,22 @@ const app = async () => {
     listEl.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  new SearchForm(formEl, onSearch);
+  // ✅ 検索フォームをまず描画
+  const form = new SearchForm(formEl, onSearch);
 
-  // 初回（条件なしで全件）
-  onSearch({
-    keyword:"", locations:[], jobCategories:[],
-    preferences:[], popular:[], annualMin:"",
-    employments:[]
-  });
+  // ✅ フォームの描画が完了してから初期データをロード
+  // setTimeoutで確実にフォーム描画後に検索開始
+  setTimeout(async () => {
+    await onSearch({
+      keyword: "",
+      locations: [],
+      jobCategories: [],
+      preferences: [],
+      popular: [],
+      annualMin: "",
+      employments: []
+    });
+  }, 100);
 };
 
 window.addEventListener("DOMContentLoaded", app);
