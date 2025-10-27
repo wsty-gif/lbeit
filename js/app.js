@@ -16,14 +16,13 @@ const app = async () => {
   const onSearch = async (filters) => {
     const data = await DataService.search(filters);
     results.show(data);
-    // 結果へスクロール（スマホ配慮）
     listEl.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   new SearchForm(formEl, onSearch);
 
-  // 初回は全件を軽く表示（必要なければコメントアウト）
-  onSearch({ prefecture:"", minWage:"", keyword:"", category:"全て" });
+  // 初回（条件なし）
+  onSearch({ keyword:"", locations:[], jobCategories:[], preferences:[], popular:[], annualMin:"", employments:[] });
 };
 
 window.addEventListener("DOMContentLoaded", app);
