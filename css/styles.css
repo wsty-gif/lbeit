@@ -815,30 +815,36 @@ img{image-rendering:auto}
   color: #888;
 }
 
-/* スライドページ全体 */
+/* スライドページコンテナ */
 #slide-container {
   position: fixed;
   inset: 0;
   overflow: hidden;
   z-index: 2000;
 }
+
+/* 各ページ */
 .slide-page {
   position: absolute;
   top: 0;
-  left: 100%;
+  left: 0;
   width: 100%;
   height: 100%;
   background: #fff;
-  transition: transform 0.3s ease;
+  transform: translateX(100%);
+  transition: transform 0.35s ease;
   display: flex;
   flex-direction: column;
-}
-.slide-page.active {
-  transform: translateX(-100%);
-  left: 0;
+  visibility: hidden;
 }
 
-/* 左メニュー＋右コンテンツ構造 */
+/* 開いたとき（右→左にスライドイン） */
+.slide-page.active {
+  transform: translateX(0);
+  visibility: visible;
+}
+
+/* 左メニューと右エリア構造 */
 .slide-inner {
   display: flex;
   flex-direction: column;
@@ -876,33 +882,4 @@ img{image-rendering:auto}
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-}
-
-/* 左メニュー */
-.side-list {
-  border-right: 1px solid #ddd;
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.side-btn {
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  border: none;
-  background: #fafafa;
-  cursor: pointer;
-}
-.side-btn.active {
-  background: #eaeaea;
-  font-weight: 600;
-}
-
-/* チェックリスト */
-.opt {
-  display: block;
-  padding: 4px 0;
-}
-.checkbox {
-  margin-right: 6px;
 }
