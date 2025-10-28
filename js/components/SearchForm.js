@@ -89,26 +89,33 @@ class SearchForm {
     const hasValue = value.length > 0;
     const valText = hasValue ? value.join("、") : "未設定";
 
-
     return `
       <div class="cond-row" id="open-${key}" style="border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;">
+        <!-- 1行目：タイトルと右側ボタン -->
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div style="display:flex;align-items:center;gap:8px;">
             <i class="${icon}" style="color:#555;font-size:1.1rem;"></i>
             <span style="font-weight:600;">${label}</span>
           </div>
-          ${hasValue
-            ? `<span class="clear-btn" data-clear="${key}" style="color:#007bff;font-size:0.9rem;">条件をクリア</span>`
-            : ""}
+          ${
+            hasValue
+              ? `<span class="clear-btn" data-clear="${key}" style="color:#007bff;font-size:0.9rem;">条件をクリア</span>`
+              : ""
+          }
         </div>
+
+        <!-- 2行目：内容（未設定または選択済み） -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-left:28px;margin-top:4px;">
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;font-size:0.95rem;">
-            ${valText}
+            ${hasValue ? value.join("、") : "未設定"}
           </span>
-          ${!hasValue ? `<span style="color:#999;font-size:1.2rem;">＞</span>` : ""}
+          ${
+            !hasValue
+              ? `<span style="color:#999;font-size:1.2rem;">＞</span>`
+              : ""
+          }
         </div>
       </div>`;
-
   }
 
   updateConditionLabels() {
