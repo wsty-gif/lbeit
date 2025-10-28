@@ -4,14 +4,17 @@ class SearchForm {
     this.el = container;
     this.onSearch = onSearch;
 
+    // 検索条件（確定値）
     this.state = {
       keyword: "",
-      locations: [], // 確定状態（適用後）
+      locations: [],
       jobs: [],
       prefs: []
     };
 
-    this._tempLoc = new Set(); // 勤務地ページ内での一時選択（適用前）
+    // 勤務地ページの一時選択（適用前）
+    this._tempLoc = new Set();
+
     this.render();
   }
 
@@ -19,9 +22,23 @@ class SearchForm {
    * 初期描画
    * ------------------------------ */
   async render() {
-    const ds = await DataService.distincts();
-    this.ds = ds;
+    // DataService 読み込み（失敗時は仮データで続行）
+    try {
+      this.ds = await DataService.distincts();
+    } catch (err) {
+      console.warn("⚠️ DataService 読み込み失敗。仮データで続行:", err);
+      this.ds = {
+        REGION_PREFS: {
+          北海道: ["北海道"],
+          東北: ["青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県"],
+          関東: ["東京都", "神奈川県", "千葉県", "埼玉県", "茨城県", "栃木県", "群馬県"]
+        },
+        jobCategories: ["カフェスタッフ", "接客", "倉庫", "事務"],
+        preferences: { 人気条件: ["未経験OK", "土日祝休み"] }
+      };
+    }
 
+    // 画面
     this.el.innerHTML = `
       <div class="card">
         <div style="display:grid;gap:16px;">
@@ -54,7 +71,7 @@ class SearchForm {
     // 検索実行
     this.el.querySelector("#btn-search").addEventListener("click", () => this.applySearch());
 
-    // スライドページのコンテナを確保
+    // スライドページのコンテナ
     this.ensureSlideContainer();
 
     // ページ構築
@@ -110,11 +127,10 @@ class SearchForm {
   }
 
   openSlide(key){
-    // 勤務地だけ一時選択セットを現在値で初期化
     if (key === "loc") {
+      // 勤務地は一時選択を現状で初期化
       this._tempLoc = new Set(this.state.locations);
     }
-
     const c=document.getElementById("slide-container");
     if(!c) return;
     c.style.pointerEvents="auto";
@@ -141,18 +157,37 @@ class SearchForm {
   }
 
   /* ------------------------------
+   * REGION_PREFS 正規化（「北海道・東北」を分離）
+   * ------------------------------ */
+  normalizeRegions(REGION_PREFS){
+    const out = {};
+    Object.entries(REGION_PREFS || {}).forEach(([region, prefs])=>{
+      if (region.includes("北海道") && region.includes("東北")) {
+        const setTohoku = new Set(["青森県","岩手県","宮城県","秋田県","山形県","福島県"]);
+        const hokkaido = prefs.filter(p => p === "北海道");
+        const tohoku   = prefs.filter(p => setTohoku.has(p));
+        if (hokkaido.length) out["北海道"] = (out["北海道"] || []).concat(hokkaido);
+        if (tohoku.length)   out["東北"]   = (out["東北"]   || []).concat(tohoku);
+      } else {
+        out[region] = (out[region] || []).concat(prefs);
+      }
+    });
+    return out;
+  }
+
+  /* ------------------------------
    * データアクセス（prefCities.js）
    * ------------------------------ */
   getPrefData(pref){
-    // 返り値は { type:"object"|"array", cities:[...], wardsMap:{} }
+    // 返り値: { type:"object"|"array", cities:[...], wardsMap:{} }
     const raw = (window.PREF_CITY_DATA || {})[pref];
     if (!raw) return { type:"none", cities:[], wardsMap:{} };
 
     if (Array.isArray(raw)) {
-      // ["久御山町", "宇治市", ...] など
+      // ["久御山町", "宇治市", ...]
       return { type:"array", cities: raw, wardsMap: {} };
     } else if (typeof raw === "object") {
-      // { "京都市": ["北区",...], "久御山町": [] } など
+      // { "京都市": ["北区",...], "久御山町": [] }
       const cities = Object.keys(raw);
       return { type:"object", cities, wardsMap: raw };
     }
@@ -178,18 +213,21 @@ class SearchForm {
         <ul id="region-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
         <div id="pref-wrap"></div>
       </div>
-      <div class="footer-buttons">
-        <button class="btn-clear" id="clear-loc">クリア</button>
-        <button class="btn-apply" id="apply-loc">内容を反映する</button>
+      <div class="footer-buttons" style="position:sticky;bottom:0;left:0;right:0;padding:10px 12px;background:#fff;border-top:1px solid #eee;display:flex;gap:8px;">
+        <button class="btn-clear" id="clear-loc" style="flex:1;min-width:88px;border:1px solid #222;background:#fff;color:#111;border-radius:8px;padding:10px;font-weight:600;">クリア</button>
+        <button class="btn-apply" id="apply-loc" style="flex:5;border:none;background:#e53935;color:#fff;border-radius:8px;padding:10px;font-weight:700;">内容を反映する</button>
       </div>`;
 
     document.getElementById("back-loc").onclick=()=>this.closeSlide("loc");
 
     const regionMenu=page.querySelector("#region-menu");
     const prefWrap=page.querySelector("#pref-wrap");
-    const regions=Object.keys(this.ds.REGION_PREFS);
 
-    // 左のエリアメニュー
+    // 地域データを正規化（「北海道・東北」を分離）
+    const REGION_PREFS = this.normalizeRegions(this.ds.REGION_PREFS);
+    const regions = Object.keys(REGION_PREFS);
+
+    // 左のエリアメニュー（赤丸で選択あり表示・折り返し防止）
     regionMenu.innerHTML=regions.map((r,i)=>`
       <li>
         <button class="side-btn ${i===0?"active":""}" data-region="${r}"
@@ -201,7 +239,7 @@ class SearchForm {
 
     // 都道府県リスト描画
     const renderPrefs=(region)=>{
-      const prefs=this.ds.REGION_PREFS[region]||[];
+      const prefs=REGION_PREFS[region]||[];
       prefWrap.innerHTML=prefs.map(pref=>`
         <div style="border-bottom:1px solid #ddd;padding:8px 0;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -214,7 +252,7 @@ class SearchForm {
           <div data-city-list="${pref}" style="display:none;padding-left:16px;"></div>
         </div>`).join("");
 
-      // 都道府県チェック → 配下一括
+      // 都道府県チェック初期同期
       prefWrap.querySelectorAll('input[type="checkbox"][data-loc]').forEach(cb=>{
         const loc = cb.getAttribute("data-loc");
         cb.checked = this._tempLoc.has(loc);
@@ -238,13 +276,12 @@ class SearchForm {
             this.renderCities(pref, list);
             list.dataset.loaded = "1";
           } else {
-            // 再表示時、チェック状態を同期
             this.syncCheckboxesIn(list);
           }
         });
       });
 
-      // 都道府県の change （配下を全ON/OFF）
+      // 都道府県 change（配下一括 ON/OFF）
       prefWrap.addEventListener("change", (e)=>{
         if (!e.target.matches('input[type="checkbox"][data-loc]')) return;
         const loc = e.target.getAttribute("data-loc");
@@ -254,13 +291,13 @@ class SearchForm {
           // prefecture
           this.setPrefChecked(loc, checked);
           this.syncCheckboxesIn(prefWrap);
-          this.updateRegionDots();
+          this.updateRegionDots(REGION_PREFS);
         }
       });
 
-      // 初期の見た目同期
+      // 初期同期
       this.syncCheckboxesIn(prefWrap);
-      this.updateRegionDots();
+      this.updateRegionDots(REGION_PREFS);
     };
 
     // 左メニュー切替
@@ -276,12 +313,11 @@ class SearchForm {
 
     // クリア / 適用
     document.getElementById("clear-loc").onclick=()=>{
-      // 画面上のチェックをすべて外し、temp選択もクリア
       this._tempLoc.clear();
-      // 現在ページのチェックUIも全解除
+      // 現在表示中のチェックを全OFF
       document.querySelectorAll('#page-loc input[type="checkbox"][data-loc]').forEach(cb=>cb.checked=false);
       this.syncCheckboxesIn(document.getElementById("page-loc"));
-      this.updateRegionDots();
+      this.updateRegionDots(REGION_PREFS);
     };
 
     document.getElementById("apply-loc").onclick=()=>{
@@ -295,7 +331,6 @@ class SearchForm {
   renderCities(pref, container){
     const { type, cities, wardsMap } = this.getPrefData(pref);
 
-    // cityブロック群を構築
     const html = cities.map(city=>{
       const wards = (type === "object") ? (wardsMap[city] || []) : [];
       const hasW  = Array.isArray(wards) && wards.length > 0;
@@ -360,7 +395,9 @@ class SearchForm {
       // 見た目反映
       this.syncCheckboxesIn(container);
       this.syncCheckboxesIn(document.getElementById("page-loc"));
-      this.updateRegionDots();
+      // REGION_PREFS が必要なので再取得
+      const REGION_PREFS = this.normalizeRegions(this.ds.REGION_PREFS);
+      this.updateRegionDots(REGION_PREFS);
     });
   }
 
@@ -383,13 +420,12 @@ class SearchForm {
     });
   }
 
-  updateRegionDots(){
-    // 地域内にひとつでも選択があれば dot を表示
-    const regions = Object.keys(this.ds.REGION_PREFS || {});
+  updateRegionDots(REGION_PREFS){
+    const regions = Object.keys(REGION_PREFS || {});
     regions.forEach(r=>{
       const dot = document.querySelector(`[data-region-dot="${r}"]`);
       if (!dot) return;
-      const prefs = this.ds.REGION_PREFS[r] || [];
+      const prefs = REGION_PREFS[r] || [];
       const has = Array.from(this._tempLoc).some(loc=>{
         return prefs.some(pref => loc === pref || loc.startsWith(pref + "/"));
       });
@@ -426,7 +462,10 @@ class SearchForm {
       // 親prefもON
       this._set(true, `${pref}`);
     } else {
-      // pref配下に残りが無ければprefもOFF
+      // 市の配下（市自身 or 区）が何もなければ pref も OFF 判定に進む
+      if (!this._hasAnyUnderCity(pref, city)) {
+        this._set(false, `${pref}/${city}`);
+      }
       if (!this._hasAnyUnderPref(pref)) {
         this._set(false, `${pref}`);
       }
@@ -442,8 +481,8 @@ class SearchForm {
       this._set(true, `${pref}/${city}`);
       this._set(true, `${pref}`);
     } else {
-      // その市に残りの ward が無ければ 市をOFF
-      if (!this._hasAnyUnderCity(pref, city)) {
+      // その市に残りの ward が無ければ 市をOFF（＝市内のチェックが0なら外す）
+      if (!this._hasAnyWardUnderCity(pref, city)) {
         this._set(false, `${pref}/${city}`);
       }
       // 都道府県配下にも何も無ければ 都道府県をOFF
@@ -451,11 +490,7 @@ class SearchForm {
         this._set(false, `${pref}`);
       }
     }
-    // ✅ UIを再描画
-    this.syncCheckboxesIn(document.getElementById("page-loc"));
-    this.updateRegionDots();
   }
-
 
   // temp セット操作
   _set(on, loc){
@@ -463,7 +498,7 @@ class SearchForm {
     else this._tempLoc.delete(loc);
   }
 
-  // 都道府県配下に一つでも選択があるか
+  // 都道府県配下に一つでも選択があるか（pref 自身、市、区のいずれか）
   _hasAnyUnderPref(pref){
     const prefix = `${pref}/`;
     for (const loc of this._tempLoc) {
@@ -472,15 +507,24 @@ class SearchForm {
     return false;
   }
 
-  // 市配下に一つでも選択があるか
+  // 市配下に一つでも選択があるか（市 or 区）
   _hasAnyUnderCity(pref, city){
-    const prefix = `${pref}/${city}/`;
+    const cityKey = `${pref}/${city}`;
+    const prefix = `${cityKey}/`;
     for (const loc of this._tempLoc) {
-      if (loc === `${pref}/${city}` || loc.startsWith(prefix)) return true;
+      if (loc === cityKey || loc.startsWith(prefix)) return true;
     }
     return false;
   }
 
+  // 市内の「区」のみで判定（＝区が0なら false）
+  _hasAnyWardUnderCity(pref, city){
+    const prefix = `${pref}/${city}/`;
+    for (const loc of this._tempLoc) {
+      if (loc.startsWith(prefix)) return true;
+    }
+    return false;
+  }
 
   /* ------------------------------
    * 職種ページ
@@ -495,9 +539,9 @@ class SearchForm {
           ${this.ds.jobCategories.map(j=>`<label class="opt" style="display:block;padding:4px 0;font-size:14px;"><input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}</label>`).join("")}
         </div>
       </div>
-      <div class="footer-buttons">
-        <button class="btn-clear" id="clear-job">クリア</button>
-        <button class="btn-apply" id="apply-job">内容を反映する</button>
+      <div class="footer-buttons" style="position:sticky;bottom:0;left:0;right:0;padding:10px 12px;background:#fff;border-top:1px solid #eee;display:flex;gap:8px;">
+        <button class="btn-clear" id="clear-job" style="flex:1;min-width:88px;border:1px solid #222;background:#fff;color:#111;border-radius:8px;padding:10px;font-weight:600;">クリア</button>
+        <button class="btn-apply" id="apply-job" style="flex:5;border:none;background:#e53935;color:#fff;border-radius:8px;padding:10px;font-weight:700;">内容を反映する</button>
       </div>`;
 
     document.getElementById("back-job").onclick=()=>this.closeSlide("job");
@@ -505,7 +549,6 @@ class SearchForm {
     // クリア / 適用
     document.getElementById("clear-job").onclick=()=>{
       this.state.jobs = [];
-      // 画面上のチェックを外す
       document.querySelectorAll('#page-job .job-chk').forEach(cb=>cb.checked=false);
       this.updateConditionLabels();
     };
@@ -539,9 +582,9 @@ class SearchForm {
         <ul id="pref-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
         <div id="pref-wrap"></div>
       </div>
-      <div class="footer-buttons">
-        <button class="btn-clear" id="clear-pref">クリア</button>
-        <button class="btn-apply" id="apply-pref">内容を反映する</button>
+      <div class="footer-buttons" style="position:sticky;bottom:0;left:0;right:0;padding:10px 12px;background:#fff;border-top:1px solid #eee;display:flex;gap:8px;">
+        <button class="btn-clear" id="clear-pref" style="flex:1;min-width:88px;border:1px solid #222;background:#fff;color:#111;border-radius:8px;padding:10px;font-weight:600;">クリア</button>
+        <button class="btn-apply" id="apply-pref" style="flex:5;border:none;background:#e53935;color:#fff;border-radius:8px;padding:10px;font-weight:700;">内容を反映する</button>
       </div>`;
 
     document.getElementById("back-pref").onclick=()=>this.closeSlide("pref");
@@ -579,7 +622,6 @@ class SearchForm {
 
     document.getElementById("clear-pref").onclick=()=>{
       this.state.prefs = [];
-      // 表示中のチェックも外す
       document.querySelectorAll("#page-pref .pref-chk").forEach(cb=>cb.checked=false);
       this.updateConditionLabels();
     };
@@ -624,4 +666,11 @@ class SearchForm {
 
     this.onSearch(filtered);
   }
+}
+
+/* ===== ヘルパ ===== */
+
+ // ※ この関数は明示的に使用していませんが、将来の表示用に残しています
+function fixCity(c){
+  return c?.replace(/^京都市/,'').replace(/^大阪市/,'').replace(/^神戸市/,'');
 }
