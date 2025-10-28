@@ -783,3 +783,34 @@ img{image-rendering:auto}
   font-size: 16px;
   color: #444;
 }
+
+/* 検索条件選択エリア */
+.search-condition {
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+.cond-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+.cond-row:last-child {
+  border-bottom: none;
+}
+.cond-label {
+  font-weight: 600;
+}
+.cond-value {
+  flex: 1;
+  text-align: right;
+  color: #666;
+  margin-right: 8px;
+}
+.cond-arrow {
+  color: #888;
+}
