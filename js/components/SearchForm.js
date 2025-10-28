@@ -97,7 +97,7 @@ class SearchForm {
   }
 
   updateConditionLabels() {
-    // 配列 → 一行テキスト（はみ出しは…）
+    // テキストを一行で省略表示
     const fitOneLine = (el, text) => {
       if (!el) return;
       el.textContent = text;
@@ -108,16 +108,23 @@ class SearchForm {
       el.style.maxWidth = "100%";
     };
 
-    // 勤務地は「最下層だけ」を並べる（例：京都府/京都市/北区 → 北区）
+    // 勤務地: 「最下層（区・市など）」のみを表示
     const formatLocations = (locations) => {
       if (!locations || locations.length === 0) return "未設定";
+
+      // 一番下の階層だけ抽出（京都府/京都市/北区 → 北区）
       const bottoms = locations.map(loc => {
         const parts = loc.split("/");
         return parts[parts.length - 1];
       });
-      return bottoms.join("、");
+
+      // 重複を除去（Setで一意化）
+      const unique = [...new Set(bottoms)];
+
+      return unique.join("、");
     };
 
+    // 通常リスト（職種やこだわり）
     const formatList = (arr) => (arr && arr.length ? arr.join("、") : "未設定");
 
     fitOneLine(this.el.querySelector("#val-loc"),  formatLocations(this.state.locations));
