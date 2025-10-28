@@ -204,26 +204,45 @@ class SearchForm {
 
     // 左カラム：大括り
     regionMenu.innerHTML = regions.map((r,i)=>`
-      <li>
-        <button class="side-btn ${i===0?"active":""}" data-region="${r}"
-          style="width:100%;text-align:left;padding:10px 12px;border:none;background:${i===0?"#eaeaea":"#fafafa"};cursor:pointer;${i===0?"font-weight:600;":""}">
+      <li style="display:flex;align-items:center;justify-content:space-between;">
+        <button class="side-btn ${i===0?"active":""}" data-region="${r}" style="flex:1;text-align:left;">
           ${r}
         </button>
+        <span class="dot" data-dot="${r}" style="width:8px;height:8px;border-radius:50%;background:#e53935;display:none;margin-left:6px;"></span>
       </li>
     `).join("");
 
+
 const renderPrefs = (region) => {
+  // ✅ 地域の赤丸インジケータ更新関数
+  const updateRegionDot = (region) => {
+    const dotEl = document.querySelector(`[data-dot="${region}"]`);
+    if (!dotEl) return;
+
+    // この地域内の都道府県チェック状態を確認
+    const prefs = (this.ds.REGION_PREFS[region] || []);
+    let hasChecked = false;
+    prefs.forEach(pref => {
+      const prefInputs = document.querySelectorAll(`input[data-pref="${pref}"]`);
+      prefInputs.forEach(inp => {
+        if (inp.checked) hasChecked = true;
+      });
+    });
+
+    dotEl.style.display = hasChecked ? "inline-block" : "none";
+  };
+
   const prefs = this.ds.REGION_PREFS[region] || [];
   prefWrap.innerHTML = prefs.map(pref => `
-    <div class="pref-block" style="border-bottom:1px solid #eee;padding:8px 0;">
+    <div class="pref-block" style="border-bottom:1px solid #ddd;padding:10px 0;">
       <div class="pref-head" style="display:flex;justify-content:space-between;align-items:center;">
-        <label class="opt" style="display:flex;align-items:center;gap:6px;">
+        <label class="opt" style="display:flex;align-items:center;gap:8px;font-size:16px;">
           <input class="checkbox pref-chk" type="checkbox" data-pref="${pref}" style="accent-color:#e53935;">
           <span style="font-weight:600;">${pref}</span>
         </label>
-        <button class="toggle" data-pref="${pref}" style="background:transparent;border:none;cursor:pointer;font-weight:bold;font-size:16px;color:#444">＋</button>
+        <button class="toggle" data-pref="${pref}" style="background:transparent;border:none;cursor:pointer;font-weight:bold;font-size:18px;color:#444">＋</button>
       </div>
-      <div class="inner hidden" data-city-list="${pref}" style="display:none;padding-left:12px;margin-top:4px;"></div>
+      <div class="inner hidden" data-city-list="${pref}" style="display:none;padding-left:16px;margin-top:6px;"></div>
     </div>
   `).join("");
 
@@ -236,22 +255,27 @@ const renderPrefs = (region) => {
       if (isHidden) {
         const citiesObj = (window.PREF_CITY_DATA && window.PREF_CITY_DATA[pref]) || {};
         const cityNames = Object.keys(citiesObj);
+
         list.innerHTML = cityNames.map(city => {
           const wards = Array.isArray(citiesObj[city]) ? citiesObj[city] : [];
           const hasWards = wards.length > 0;
+
           return `
-            <div class="city-block" style="padding:6px 0;">
+            <div class="city-block" style="border-bottom:1px solid #eee;padding:8px 0;">
               <div class="city-head" style="display:flex;justify-content:space-between;align-items:center;">
-                <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
-                  <input class="checkbox city-chk" type="checkbox" data-loc="${pref}/${city}" data-pref="${pref}" style="accent-color:#e53935;margin-right:6px;"> ${city}
+                <label class="opt" style="display:block;padding:4px 0;font-size:16px;">
+                  <input class="checkbox city-chk" type="checkbox" data-loc="${pref}/${city}" data-pref="${pref}" style="accent-color:#e53935;margin-right:6px;">
+                  ${city}
                 </label>
                 ${hasWards ? `<button class="toggle" data-city="${city}" style="background:transparent;border:none;cursor:pointer;font-weight:bold;font-size:16px;color:#444">＋</button>` : ""}
               </div>
+
               ${hasWards ? `
-                <div class="inner hidden" data-ward-list="${city}" style="display:none;padding-left:12px;margin-top:4px;">
+                <div class="inner hidden" data-ward-list="${city}" style="display:none;padding-left:16px;margin-top:6px;">
                   ${wards.map(w => `
-                    <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
-                      <input class="checkbox ward-chk" type="checkbox" data-loc="${pref}/${city}/${w}" data-pref="${pref}" style="accent-color:#e53935;margin-right:6px;"> ${w}
+                    <label class="opt" style="display:block;padding:4px 0;font-size:15px;">
+                      <input class="checkbox ward-chk" type="checkbox" data-loc="${pref}/${city}/${w}" data-pref="${pref}" style="accent-color:#e53935;margin-right:6px;">
+                      ${w}
                     </label>
                   `).join("")}
                 </div>
@@ -260,7 +284,7 @@ const renderPrefs = (region) => {
           `;
         }).join("");
 
-        // 区展開
+        // 区の展開イベント
         list.querySelectorAll("[data-city]").forEach(b => {
           b.addEventListener("click", () => {
             const city = b.getAttribute("data-city");
@@ -292,13 +316,12 @@ const renderPrefs = (region) => {
         cb.checked = checked;
         cb.closest("label").style.background = checked ? "#ffecec" : "transparent";
       });
-      // 都道府県行の色も変える
       const parentDiv = prefChk.closest(".pref-head");
       if (parentDiv) parentDiv.style.background = checked ? "#ffecec" : "transparent";
     });
   });
 
-  // ✅ 個別のチェック時にも背景を反映
+  // ✅ 各チェックボックス選択時に背景色を反映
   prefWrap.addEventListener("change", e => {
     if (e.target.classList.contains("checkbox")) {
       const label = e.target.closest("label");
@@ -308,7 +331,6 @@ const renderPrefs = (region) => {
     }
   });
 };
-
 
     // 地域切替
     regionMenu.querySelectorAll(".side-btn").forEach(btn => {

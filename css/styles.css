@@ -885,10 +885,24 @@ img{image-rendering:auto}
 }
 
 input[type="checkbox"] {
-  accent-color: #e53935; /* 赤チェック */
+  accent-color: #e53935;
 }
 
 label.opt {
-  transition: background 0.2s ease;
   border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.side-list li {
+  position: relative;
+  padding: 6px 0;
+}
+
+.dot {
+  animation: popin 0.2s ease;
+}
+
+@keyframes popin {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
