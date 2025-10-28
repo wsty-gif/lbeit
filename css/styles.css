@@ -1,52 +1,652 @@
+/* =============================
+   🌿 ベーススタイル
+============================= */
+.nav-btn.active {
+  background-color: #10b981;
+  color: white;
+}
+.nav-btn:hover {
+  background-color: #f3f4f6;
+}
+.nav-btn.active:hover {
+  background-color: #059669;
+}
 
-*{box-sizing:border-box}
-body{font-family:'Noto Sans JP',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple Color Emoji','Segoe UI Emoji';color:#111827;margin:0;background:#fafafa}
-.container{max-width:1000px;margin:0 auto;padding:16px}
-.hero-title{font-weight:800;font-size:clamp(18px,4.8vw,28px);margin:12px 0 4px}
-.hero-sub{color:#374151;margin:0 0 16px}
+/* カード */
+.account-card {
+  transition: all 0.3s ease;
+  transform: translateY(0);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.account-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+              0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
 
-.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.06);padding:16px}
+/* アニメーション */
+.fade-in { animation: fadeIn 0.5s ease-in; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-.btn{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 14px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-weight:700}
-.btn:hover{background:#f9fafb}
-.btn-primary{background:linear-gradient(90deg,#f97316,#ef4444);color:#fff;border:none}
-.btn-primary:hover{filter:brightness(1.05)}
+/* セレクト */
+.custom-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+.custom-checkbox { accent-color: #ea580c; }
 
-.badge{display:inline-flex;align-items:center;background:#f3f4f6;border:1px solid #d1d5db;border-radius:999px;padding:4px 10px;font-size:12px;margin:4px}
+/* スクロールバー */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-.input{width:100%;height:44px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px}
+/* モーダル */
+.modal-enter { animation: modalEnter 0.3s ease-out; }
+@keyframes modalEnter {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
 
-/* modal */
-.modal{position:fixed;inset:0;display:none;z-index:50}
-.modal.show{display:block}
-.modal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
-.modal .panel{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:10px}
-.modal .card{width:100%;max-width:980px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column}
-.modal .card .head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #e5e7eb}
-.modal .card .body{padding:12px 16px;overflow:auto}
-.modal .card .foot{display:flex;justify-content:space-between;gap:10px;padding:12px 16px;border-top:1px solid #e5e7eb}
-.modal .close{border:none;background:#f3f4f6;border-radius:8px;padding:8px 10px;cursor:pointer}
+/* =============================
+   🔍 検索フォーム
+============================= */
+#search-form { margin-bottom: 2rem; }
 
-.grid-3{display:grid;grid-template-columns:200px 1fr;gap:12px}
-@media(min-width:900px){.grid-3{grid-template-columns:220px 1fr}}
+#search-form .search-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+}
+#search-form .search-grid > div { width: 48%; }
 
-.side-list{list-style:none;margin:0;padding:0;border-right:1px solid #e5e7eb}
-.side-list li{margin:0}
-.side-btn{width:100%;text-align:left;display:block;padding:10px 12px;border:none;background:#fff;cursor:pointer;border-radius:8px;margin:4px 0}
-.side-btn.active,.side-btn:hover{background:#fff7ed;border:1px solid #fed7aa}
+@media (max-width: 360px) {
+  #search-form .search-grid > div { width: 100%; }
+}
 
-.pref-block{border:1px solid #e5e7eb;border-radius:8px;margin:8px 0}
-.pref-head,.city-head{display:flex;justify-content:space-between;align-items:center;background:#f9fafb;padding:8px 12px;border-bottom:1px solid #e5e7eb}
-.toggle{border:none;background:#f97316;color:#fff;border-radius:6px;width:28px;height:28px;font-weight:800;cursor:pointer}
-.inner{padding:8px 12px}
-.opt{display:block;margin:4px 0}
-.hidden{display:none}
+#search-form select,
+#search-form input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  height: 44px;
+  padding: 0 10px;
+  font-size: 0.95rem;
+}
 
-.job-list .opt{width:100%} /* 1行1項目 */
-.checkbox{accent-color:#f97316}
+#search-form #search-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 42px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  background-image: linear-gradient(to right, var(--tw-gradient-from, #f97316), var(--tw-gradient-to, #ef4444));
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  margin-top: 10px;
+}
+#search-form #search-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+@media (max-width: 480px) {
+  #search-form #search-btn { height: 38px; font-size: 0.9rem; border-radius: 8px; }
+}
 
-.summary{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+/* =============================
+   🧡 こだわり条件（安定版）
+============================= */
+#search-form .filter-section {
+  display: flex;
+  flex-direction: column; /* ← 縦並び固定 */
+  gap: 6px;
+  align-items: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+}
 
-.result-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:10px 0}
-.result-title{font-weight:700;margin:0 0 6px}
-.result-sub{color:#374151;font-size:14px;margin:0 0 6px}
+#search-form .filter-section label {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  color: #374151;
+  white-space: normal;
+  word-break: break-word;
+}
+
+#search-form .filter-section input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  flex-shrink: 0;
+  accent-color: #f97316;
+}
+
+@media (max-width: 480px) {
+  #search-form .filter-section { gap: 4px; }
+  #search-form .filter-section label { font-size: 0.9rem; }
+}
+
+/* =============================
+   🪄 その他補正
+============================= */
+html, body {
+  overflow-x: hidden !important;
+  width: 100%;
+}
+
+/* ====== ヒーロータイトル（見切れ防止・端末共通） ====== */
+.hero-container {
+  max-width: 100vw;
+  overflow-x: hidden;
+  padding: 0 12px;           /* 端ギリ防止の左右余白 */
+  box-sizing: border-box;
+}
+
+.hero-title {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  color: #111827;
+  font-weight: 800;
+  line-height: 1.25;         /* つめ過ぎ防止 */
+  /* 画面幅に応じて自動で縮小（下限18px〜上限28px） */
+  font-size: clamp(18px, 5.2vw, 28px);
+
+  /* 見切れ防止のため、基本は改行OKにしておく */
+  white-space: normal;
+  /* CJK でもはみ出し時に強制的に折り返す最終手段 */
+  overflow-wrap: anywhere;   /* = word-break: break-word の上位互換 */
+  word-break: keep-all;      /* 日本語の自然な改行を優先 */
+  text-wrap: balance;        /* 対応ブラウザで見栄え良く改行 */
+}
+
+/* かなり小さい端末向けの微調整 */
+@media (max-width: 360px) {
+  .hero-title {
+    font-size: clamp(16px, 5.6vw, 22px);
+    line-height: 1.3;
+  }
+}
+
+
+/* ============================
+   💚 こだわり条件専用スタイル
+   （都道府県などのselectとは完全分離）
+============================ */
+
+/* コンテナ設定 */
+#search-form .filter-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+}
+
+/* ラベル設定 */
+#search-form .filter-section label {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #374151;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ✅ チェックボックス（独立定義） */
+#search-form .filter-section input[type="checkbox"].filter-checkbox {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  accent-color: #f97316; /* orange-500 */
+  flex-shrink: 0;
+  transform: scale(0.9); /* やや小さめ */
+  cursor: pointer;
+}
+
+/* モバイル時 */
+@media (max-width: 480px) {
+  #search-form .filter-section label {
+    font-size: 0.85rem;
+  }
+  #search-form .filter-section input[type="checkbox"].filter-checkbox {
+    width: 14px;
+    height: 14px;
+    transform: scale(0.85);
+  }
+}
+
+/* ============================
+   💚 こだわり条件専用レイアウト修正
+   （1列整列＆バランス調整）
+============================ */
+
+/* こだわり条件コンテナ */
+#search-form #filters-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 各行を横並びにし、折り返さない */
+#search-form #filters-content > div {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+/* チェックボックス */
+#search-form #filters-content input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #f97316; /* orange-500 */
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* テキストラベル */
+#search-form #filters-content label {
+  font-size: 0.95rem;
+  color: #374151;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+/* モバイル時の微調整 */
+@media (max-width: 480px) {
+  #search-form #filters-content {
+    gap: 6px;
+  }
+  #search-form #filters-content input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+  }
+  #search-form #filters-content label {
+    font-size: 0.9rem;
+  }
+}
+
+/* ============================
+   💚 こだわり条件＋ボタンの整列修正
+============================ */
+
+/* こだわり条件セクション全体を縦並びに固定 */
+#search-form .filter-section-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* こだわり条件のチェック群 */
+#search-form #filters-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+/* 各チェックボックス行 */
+#search-form #filters-content > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+/* チェックボックス */
+#search-form #filters-content input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #f97316;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* ラベル */
+#search-form #filters-content label {
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.4;
+}
+
+/* 絞り込みボタンの配置（条件の下に固定） */
+#search-form .filter-submit {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+  width: 100%;
+}
+
+/* ボタンのスタイル統一 */
+#search-form .filter-submit button {
+  background-image: linear-gradient(to right, #f97316, #ef4444);
+  color: white;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 300px;
+}
+
+#search-form .filter-submit button:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+/* モバイル対応 */
+@media (max-width: 480px) {
+  #search-form .filter-submit button {
+    width: 100%;
+    font-size: 0.9rem;
+    padding: 8px 14px;
+  }
+}
+
+/* ============================
+   💚 こだわり条件（SearchForm構造維持・表示安定版）
+============================ */
+
+/* こだわり条件コンテナ */
+#search-form #filters-content {
+  display: none; /* デフォルト非表示（JSで切替） */
+  flex-direction: column;
+  gap: 8px;
+  background-color: #fff7ed; /* orange-50 */
+  border: 2px solid #fed7aa; /* orange-200 */
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+/* 表示状態時に出す */
+#search-form #filters-content.active {
+  display: flex;
+}
+
+/* 各行（1行ごとに横並び） */
+#search-form #filters-content .filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+/* チェックボックス */
+#search-form #filters-content input[type="checkbox"].custom-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #f97316;
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* ラベル */
+#search-form #filters-content label {
+  font-size: 0.95rem;
+  color: #374151;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: normal;
+}
+
+/* 見出し */
+#search-form #filters-content p {
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+/* モバイル最適化 */
+@media (max-width: 480px) {
+  #search-form #filters-content {
+    padding: 10px;
+  }
+
+  #search-form #filters-content input[type="checkbox"].custom-checkbox {
+    width: 16px;
+    height: 16px;
+  }
+
+  #search-form #filters-content label {
+    font-size: 0.9rem;
+  }
+}
+
+/* ==============================
+   ✅ こだわり条件の最終安定版
+============================== */
+
+/* デフォルトでは非表示（hidden クラスまたは JSで制御） */
+#search-form #filters-content.hidden {
+  display: none !important;
+}
+
+/* 表示時 */
+#search-form #filters-content {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  background-color: #fff7ed; /* orange-50 */
+  border: 2px solid #fed7aa; /* orange-200 */
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+/* 各行を横並びに整列 */
+#search-form #filters-content > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+/* チェックボックスの見た目 */
+#search-form #filters-content input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #f97316;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* ラベル */
+#search-form #filters-content label {
+  font-size: 0.95rem;
+  color: #374151;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: normal;
+}
+
+/* モバイル微調整 */
+@media (max-width: 480px) {
+  #search-form #filters-content {
+    padding: 10px;
+  }
+  #search-form #filters-content input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+  }
+  #search-form #filters-content label {
+    font-size: 0.9rem;
+  }
+}
+
+/* ==============================
+   💬 検索結果カテゴリバッジ（薄灰色丸囲み）
+============================== */
+
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 9999px; /* 丸型 */
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4b5563; /* text-gray-700 */
+  background-color: #f3f4f6; /* bg-gray-100 */
+  border: 1px solid #d1d5db; /* border-gray-300 */
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* モバイル最適化 */
+@media (max-width: 480px) {
+  .category-badge {
+    font-size: 0.8rem;
+    padding: 3px 8px;
+  }
+}
+
+/* =============================
+   📸 Instagramボタン（検索画面用）
+============================= */
+/* =============================
+   📸 Instagramボタン（検索画面専用・160px）
+============================= */
+.insta_btn2 {
+  color: #FFF;
+  border-radius: 7px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 50px;
+  width: 160px; /* ✅ 検索画面は160px固定 */
+  font-size: 18px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #427eff 0%, #f13f79 70%) no-repeat;
+  border: none;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.insta_btn2 .fa-instagram {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.insta_btn2 span {
+  display: inline-block;
+  transition: 0.5s;
+}
+
+.insta_btn2:hover span {
+  transform: rotateX(360deg);
+}
+
+
+/* =============================
+   📸 Instagramボタン（詳細画面専用・独立サイズ）
+============================= */
+.insta_btn_detail {
+  color: #FFF;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 50px;
+  width: 190px; /* ✅ 詳細画面専用のサイズ（LINEと統一） */
+  font-size: 20px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #427eff 0%, #f13f79 70%) no-repeat;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.insta_btn_detail .fa-instagram {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.insta_btn_detail span {
+  display: inline-block;
+  transition: 0.5s;
+}
+
+.insta_btn_detail:hover span {
+  transform: rotateX(360deg);
+}
+
+
+/* =============================
+   💚 LINEボタン（Instagramと統一デザイン）
+============================= */
+.line-add-btn {
+  display: inline-block;
+  height: 50px;
+  width: 190px;
+  border-radius: 7px;
+  overflow: hidden;
+  background-color: #06c755; /* LINEのブランドカラー */
+  text-align: center;
+  line-height: 50px;
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+  text-decoration: none;
+  position: relative;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.line-add-btn:hover {
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
+.line-add-btn img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  border-radius: 7px;
+}
+
+/* 入力UIの視認性UP（スマホ優先） */
+.custom-select{
+  width:100%;border:1px solid #d1d5db;border-radius:10px;height:44px;padding:0 12px;font-size:16px;background:#fff
+}
+.custom-select:focus{outline:none;box-shadow:0 0 0 3px rgba(251,146,60,.25)}
+
+/* 画像角丸陰影（高齢者にも視認性◎） */
+img{image-rendering:auto}
