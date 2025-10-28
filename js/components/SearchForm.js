@@ -91,8 +91,10 @@ condRow(key, label, icon) {
   const id = `val-${key}`;
 
   return `
-    <div class="cond-row" id="open-${key}" style="border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;">
-      <!-- タイトル行 -->
+    <div class="cond-row" id="open-${key}" 
+         style="border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;">
+      
+      <!-- 上段：タイトル行 -->
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="display:flex;align-items:center;gap:8px;">
           <i class="${icon}" style="color:#555;font-size:1.1rem;"></i>
@@ -100,25 +102,30 @@ condRow(key, label, icon) {
         </div>
         ${
           hasValue
-            ? `<span class="clear-btn" data-clear="${key}" style="color:#007bff;font-size:0.9rem;white-space:nowrap;">条件をクリア</span>`
-            : ""
+            ? `<span class="clear-btn" data-clear="${key}" 
+                style="color:#007bff;font-size:0.9rem;white-space:nowrap;">条件をクリア</span>`
+            : ``
         }
       </div>
 
-      <!-- 未設定 or 値（常時2行構成） -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-left:28px;margin-top:4px;">
-        <span id="${id}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;font-size:0.95rem;">
+      <!-- 下段：内容行（常時表示） -->
+      <div style="display:flex;justify-content:space-between;
+                  align-items:center;margin-left:28px;margin-top:4px;">
+        <span id="${id}" 
+              style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                     color:#444;font-size:0.95rem;max-width:90%;">
           ${valText}
         </span>
         ${
           !hasValue
             ? `<span style="color:#999;font-size:1.2rem;">＞</span>`
-            : ""
+            : ``
         }
       </div>
     </div>
   `;
 }
+
 
 
   updateConditionLabels() {
