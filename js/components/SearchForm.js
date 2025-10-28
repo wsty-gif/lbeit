@@ -190,9 +190,10 @@ class SearchForm {
         <ul id="region-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
         <div id="pref-wrap"></div>
       </div>
-      <div class="slide-footer" style="padding:10px 16px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:8px;">
-        <button class="btn" id="clear-loc">クリア</button>
-        <button class="btn btn-primary" id="apply-loc">内容を反映する</button>
+      <div class="foot">
+        <button class="btn" data-clear-loc>クリア</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary" data-apply-loc>内容を反映する</button>
       </div>
     `;
 
@@ -446,9 +447,10 @@ const renderPrefs = (region) => {
         <ul id="pref-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
         <div id="pref-wrap"></div>
       </div>
-      <div class="slide-footer" style="padding:10px 16px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:8px;">
-        <button class="btn" id="clear-pref">クリア</button>
-        <button class="btn btn-primary" id="apply-pref">内容を反映する</button>
+      <div class="foot">
+        <button class="btn" data-clear-loc>クリア</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary" data-apply-loc>内容を反映する</button>
       </div>
     `;
 

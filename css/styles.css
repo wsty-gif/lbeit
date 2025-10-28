@@ -917,41 +917,43 @@ label.opt {
   justify-content: space-between;
   align-items: center;
   background: #fff;
-  padding: 10px 14px;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  padding: 12px 16px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
   z-index: 1000;
-  gap: 10px;
+  gap: 12px;
 }
 
 /* --- クリアボタン --- */
 .footer-buttons .btn-clear {
-  flex: 0 0 8%;
+  flex: 0 0 25%;
   background: #fff;
   color: #333;
   border: 1.8px solid #333;
   font-weight: 600;
   font-size: 15px;
   border-radius: 8px;
-  padding: 10px 0;
+  padding: 12px 0;
   text-align: center;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 .footer-buttons .btn-clear:hover {
-  background: #f5f5f5;
+  background: #f8f8f8;
 }
 
 /* --- 内容を反映するボタン --- */
 .footer-buttons .btn-apply {
-  flex: 0 0 86%;
+  flex: 0 0 70%;
   background: #e53935;
   color: #fff;
   border: none;
   font-weight: 600;
   font-size: 16px;
   border-radius: 8px;
-  padding: 12px 0;
+  padding: 13px 0;
   text-align: center;
   transition: background 0.2s ease;
+  box-sizing: border-box;
 }
 .footer-buttons .btn-apply:hover {
   background: #d32f2f;
