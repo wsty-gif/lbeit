@@ -128,31 +128,32 @@ condRow(key, label, icon) {
 
 
 
-  updateConditionLabels() {
-    const fitOneLine = (el, text) => {
-      if (!el) return;
-      el.textContent = text;
-      el.style.whiteSpace = "nowrap";
-      el.style.overflow = "hidden";
-      el.style.textOverflow = "ellipsis";
-      el.style.display = "block";
-      el.style.maxWidth = "100%";
-    };
+updateConditionLabels() {
+  // 現在の状態からラベルを再生成
+  const formatLocations = (locations) => {
+    if (!locations || locations.length === 0) return "未設定";
+    const lowest = locations.map(loc => loc.split("/").pop());
+    return [...new Set(lowest)].join("、");
+  };
 
-    // ✅ 最下層（区・市など）だけを抽出
-    const formatLocations = (locations) => {
-      if (!locations || locations.length === 0) return "未設定";
-      const lowest = locations.map(loc => loc.split("/").pop());
-      const unique = [...new Set(lowest)];
-      return unique.join("、");
-    };
+  const formatList = (arr) => (arr && arr.length ? arr.join("、") : "未設定");
 
-    const formatList = (arr) => (arr && arr.length ? arr.join("、") : "未設定");
+  const locEl = this.el.querySelector("#val-loc");
+  const jobEl = this.el.querySelector("#val-job");
+  const prefEl = this.el.querySelector("#val-pref");
 
-    fitOneLine(this.el.querySelector("#val-loc"),  formatLocations(this.state.locations));
-    fitOneLine(this.el.querySelector("#val-job"),  formatList(this.state.jobs));
-    fitOneLine(this.el.querySelector("#val-pref"), formatList(this.state.prefs));
-  }
+  if (locEl) locEl.textContent = formatLocations(this.state.locations);
+  if (jobEl) jobEl.textContent = formatList(this.state.jobs);
+  if (prefEl) prefEl.textContent = formatList(this.state.prefs);
+
+  // 「条件をクリア」ボタンの表示制御
+  ["loc", "job", "pref"].forEach(key => {
+    const clearBtn = this.el.querySelector(`[data-clear="${key}"]`);
+    const hasValue = (this.state[key + "ations"] || []).length > 0;
+    if (clearBtn) clearBtn.style.display = hasValue ? "inline" : "none";
+  });
+}
+
 
   ensureSlideContainer() {
     if (document.getElementById("slide-container")) return;
