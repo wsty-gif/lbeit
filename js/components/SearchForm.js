@@ -97,12 +97,32 @@ class SearchForm {
   }
 
   updateConditionLabels() {
-    const txt = (arr) => arr.length ? arr.slice(0,2).join("、") + (arr.length>2?" ほか":"") : "未設定";
-    const el = (id, v) => { const n=this.el.querySelector(id); if(n) n.textContent=v; };
+    // 配列 → 一行テキスト（はみ出しは…）
+    const fitOneLine = (el, text) => {
+      if (!el) return;
+      el.textContent = text;
+      el.style.whiteSpace = "nowrap";
+      el.style.overflow = "hidden";
+      el.style.textOverflow = "ellipsis";
+      el.style.display = "block";
+      el.style.maxWidth = "100%";
+    };
 
-    el("#val-loc",  txt(this.state.locations));
-    el("#val-job",  txt(this.state.jobs));
-    el("#val-pref", txt(this.state.prefs));
+    // 勤務地は「最下層だけ」を並べる（例：京都府/京都市/北区 → 北区）
+    const formatLocations = (locations) => {
+      if (!locations || locations.length === 0) return "未設定";
+      const bottoms = locations.map(loc => {
+        const parts = loc.split("/");
+        return parts[parts.length - 1];
+      });
+      return bottoms.join("、");
+    };
+
+    const formatList = (arr) => (arr && arr.length ? arr.join("、") : "未設定");
+
+    fitOneLine(this.el.querySelector("#val-loc"),  formatLocations(this.state.locations));
+    fitOneLine(this.el.querySelector("#val-job"),  formatList(this.state.jobs));
+    fitOneLine(this.el.querySelector("#val-pref"), formatList(this.state.prefs));
   }
 
   ensureSlideContainer() {
