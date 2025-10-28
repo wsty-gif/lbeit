@@ -109,18 +109,48 @@ condRow(key, label, icon) {
         </span>
       </div>
 
-      <!-- 下段 -->
-      <div class="cond-value"
-          style="display:flex;justify-content:space-between;align-items:center;
-                  margin-left:28px;max-width:100%;">
-        <span id="${id}"
-              style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-                    color:#444;font-size:0.95rem;min-width:0;">
-          ${valText}
-        </span>
-        <!-- 常に矢印を表示 -->
-        <span class="arrow" style="color:#999;font-size:1.2rem;flex-shrink:0;margin-left:6px;">＞</span>
-      </div>
+      <!-- 下段 --><!-- 下段 -->
+<div style="
+  position: relative;
+  margin-left: 28px;
+  margin-top: 4px;
+  overflow: hidden;
+  max-width: 80vw; /* モバイルでも収まる最大幅 */
+  height: 1.6em;
+  box-sizing: border-box;
+">
+  <!-- テキスト部分 -->
+  <span id="val-${key}"
+        style="
+          display: block;
+          width: calc(100% - 28px); /* ＞分を確保 */
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          color: #444;
+          font-size: 0.95rem;
+          padding-right: 4px;
+        ">
+    ${valText}
+  </span>
+
+  <!-- ＞を右端固定 -->
+  <span style="
+    position: absolute;
+    right: 0;
+    top: 0;
+    color: #999;
+    font-size: 1.2rem;
+    line-height: 1.6em;
+    width: 24px;
+    text-align: right;
+    flex-shrink: 0;
+  ">
+    ＞
+  </span>
+</div>
+
+
     </div>
   `;
 }
