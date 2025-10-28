@@ -373,7 +373,6 @@ updateConditionLabels() {
     document.getElementById("apply-loc").onclick=()=>{
       this.state.locations = Array.from(this._tempLoc);
       this.updateConditionLabels();
-      this.render(); 
       this.closeSlide("loc");
     };
   }
@@ -617,7 +616,6 @@ updateConditionLabels() {
       const checked=Array.from(document.querySelectorAll("#page-job .job-chk:checked")).map(c=>c.value);
       this.state.jobs=checked;
       this.updateConditionLabels();
-      this.render();
       this.closeSlide("job");
     };
 
@@ -692,7 +690,6 @@ updateConditionLabels() {
       const checked=Array.from(document.querySelectorAll("#page-pref .pref-chk:checked")).map(c=>c.value);
       this.state.prefs=checked;
       this.updateConditionLabels();
-      this.render();
       this.closeSlide("pref");
     };
   }
