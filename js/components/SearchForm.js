@@ -91,29 +91,21 @@ class SearchForm {
 
     return `
       <div class="cond-row" id="open-${key}" style="border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;">
-        <!-- 1行目：タイトルと右側ボタン -->
+        <!-- タイトル行 -->
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div style="display:flex;align-items:center;gap:8px;">
             <i class="${icon}" style="color:#555;font-size:1.1rem;"></i>
             <span style="font-weight:600;">${label}</span>
           </div>
-          ${
-            hasValue
-              ? `<span class="clear-btn" data-clear="${key}" style="color:#007bff;font-size:0.9rem;">条件をクリア</span>`
-              : ""
-          }
+          ${hasValue ? `<span class="clear-btn" data-clear="${key}" style="color:#007bff;font-size:0.9rem;">条件をクリア</span>` : ""}
         </div>
 
-        <!-- 2行目：内容（未設定または選択済み） -->
+        <!-- 内容行（未設定 or 値） -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-left:28px;margin-top:4px;">
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;font-size:0.95rem;">
-            ${hasValue ? value.join("、") : "未設定"}
+            ${valText}
           </span>
-          ${
-            !hasValue
-              ? `<span style="color:#999;font-size:1.2rem;">＞</span>`
-              : ""
-          }
+          ${!hasValue ? `<span style="color:#999;font-size:1.2rem;">＞</span>` : ""}
         </div>
       </div>`;
   }
@@ -442,18 +434,21 @@ class SearchForm {
 
   // 市のON/OFF（区も一括・親も自動）
   setCityChecked(pref, city, checked) {
-    // 市自身
     this._set(checked, `${pref}/${city}`);
 
-    // 区を全て巻き込む
+    // 区をすべて一括でON/OFF
     const wards = this.getWards(pref, city) || [];
     wards.forEach(w => this._set(checked, `${pref}/${city}/${w}`));
 
     if (checked) {
-      // 子をONにしたら親もON
+      // ONなら親の都道府県もON
       this._set(true, pref);
     } else {
-      // 市をOFFにした結果、都道府県の子が空なら府県もOFF
+      // 区を含め全てOFFなら市OFF
+      if (!this._hasAnyUnderCity(pref, city)) {
+        this._set(false, `${pref}/${city}`);
+      }
+      // 都道府県配下に子（市 or 区）が残っていなければ府県もOFF
       if (!this._hasAnyChildrenUnderPref(pref)) {
         this._set(false, pref);
       }
@@ -512,15 +507,15 @@ class SearchForm {
     this._set(checked, `${pref}/${city}/${ward}`);
 
     if (checked) {
-      // 子をONにしたら親もON
+      // 区をON → 市と府県もON
       this._set(true, `${pref}/${city}`);
       this._set(true, pref);
     } else {
-      // 区が全部外れたら市をOFF
+      // 区が全て外れたら市OFF
       if (!this._hasAnyWard(pref, city)) {
         this._set(false, `${pref}/${city}`);
       }
-      // 都道府県配下（pref/〜）に子が何も無ければ府県もOFF
+      // 市が全OFFなら府県もOFF
       if (!this._hasAnyChildrenUnderPref(pref)) {
         this._set(false, pref);
       }
