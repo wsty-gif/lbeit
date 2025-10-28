@@ -84,31 +84,46 @@ class SearchForm {
   /* ------------------------------
    * 共通UI片
    * ------------------------------ */
-  condRow(key, label, icon) {
-    const value = this.state[key + "ations"] || [];
-    const hasValue = value.length > 0;
-    const valText = hasValue ? value.join("、") : "未設定";
+    condRow(key, label, icon) {
+      const values =
+        key === "loc"
+          ? this.summarizeLocations(this.state.locations)
+          : key === "job"
+          ? this.state.jobs
+          : this.state.prefs;
 
-    return `
-      <div class="cond-row" id="open-${key}" style="border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;">
-        <!-- タイトル行 -->
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <i class="${icon}" style="color:#555;font-size:1.1rem;"></i>
-            <span style="font-weight:600;">${label}</span>
+      const hasValue = values && values.length > 0;
+      const contentText = hasValue ? values.join("、") : "未設定";
+
+      return `
+        <div class="cond-row" id="open-${key}" style="border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;">
+          <!-- 1行目：タイトルと条件クリア -->
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <i class="${icon}" style="color:#555;font-size:1.1rem;"></i>
+              <span style="font-weight:600;">${label}</span>
+            </div>
+            ${
+              hasValue
+                ? `<span class="clear-btn" data-clear="${key}" style="color:#1d4ed8;font-size:0.9rem;">条件をクリア</span>`
+                : ""
+            }
           </div>
-          ${hasValue ? `<span class="clear-btn" data-clear="${key}" style="color:#007bff;font-size:0.9rem;">条件をクリア</span>` : ""}
-        </div>
 
-        <!-- 内容行（未設定 or 値） -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-left:28px;margin-top:4px;">
-          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;font-size:0.95rem;">
-            ${valText}
-          </span>
-          ${!hasValue ? `<span style="color:#999;font-size:1.2rem;">＞</span>` : ""}
+          <!-- 2行目：未設定 or 内容＋右端に「＞」 -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-left:28px;margin-top:4px;">
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;font-size:0.95rem;">
+              ${contentText}
+            </span>
+            ${
+              hasValue
+                ? ""
+                : `<span style="color:#999;font-size:1.2rem;">＞</span>`
+            }
+          </div>
         </div>
-      </div>`;
-  }
+      `;
+    }
 
   updateConditionLabels() {
     const fitOneLine = (el, text) => {
@@ -158,17 +173,36 @@ class SearchForm {
   }
 
   openSlide(key){
-    if (key === "loc") {
-      // 勤務地は一時選択を現状で初期化
-      this._tempLoc = new Set(this.state.locations);
-    }
-    const c=document.getElementById("slide-container");
-    if(!c) return;
-    c.style.pointerEvents="auto";
-    const p=document.getElementById(`page-${key}`);
-    if(!p) return;
-    p.style.visibility="visible";
-    requestAnimationFrame(()=>{p.style.transform="translateX(0)";});
+    if (key === "loc") this.tmp.loc = new Set(this.state.locations);
+    if (key === "job") this.tmp.job = new Set(this.state.jobs);
+    if (key === "pref") this.tmp.pref = new Set(this.state.prefs);
+
+    const page = document.getElementById(`page-${key}`);
+    page.style.transform = "translateX(0%)";
+
+    // 戻るボタン
+    page.querySelector(`[data-back-${key}]`).onclick = () => {
+      page.style.transform = "translateX(100%)";
+    };
+
+    // クリアボタン
+    page.querySelector(`[data-clear-${key}]`).onclick = () => {
+      if (key === "loc") this.tmp.loc.clear();
+      if (key === "job") this.tmp.job.clear();
+      if (key === "pref") this.tmp.pref.clear();
+      this.refreshChecks(key);
+    };
+
+    // ✅ 内容を反映するボタン（ここに this.render() を追加）
+    page.querySelector(`[data-apply-${key}]`).onclick = () => {
+      if (key === "loc") this.state.locations = Array.from(this.tmp.loc);
+      if (key === "job") this.state.jobs = Array.from(this.tmp.job);
+      if (key === "pref") this.state.prefs = Array.from(this.tmp.pref);
+
+      this.render(); // ←この1行を追加！
+
+      page.style.transform = "translateX(100%)";
+    };
   }
 
   closeSlide(key){
