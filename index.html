@@ -2,54 +2,31 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lバイト｜LINEでかんたん応募できるアルバイト情報サイト</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <link rel="stylesheet" href="css/styles.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <style>
-    /* 追加: 簡易サジェストUI（スマホ最適） */
-    .suggest-box{position:absolute;z-index:30;inset-inline:0;max-height:220px;overflow:auto;border:1px solid #e5e7eb;background:#fff;border-radius:.5rem;box-shadow:0 6px 20px rgba(0,0,0,.08)}
-    .suggest-item{padding:.6rem .8rem;font-size:.95rem;cursor:pointer}
-    .suggest-item:hover{background:#f3f4f6}
-    .clip-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-    .clip-4{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
-    .more-btn{color:#2563eb;font-weight:600}
-  </style>
+  <link rel="icon" href="./images/favicon.ico" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+  <script defer src="https://kit.fontawesome.com/2b2d0a1d8d.js" crossorigin="anonymous"></script>
 </head>
-<body class="bg-gradient-to-br from-gray-50 via-orange-50/20 to-gray-50 min-h-screen">
-  <div id="app" class="max-w-7xl mx-auto px-4 py-6">
-    <div class="w-full flex justify-center mb-6">
-      <img src="images/logo.png" alt="Lバイト" class="h-16 md:h-24 object-contain" />
-    </div>
+<body>
+  <header class="container">
+    <h1 class="hero-title">Lバイト｜LINEでかんたん応募できるアルバイト情報サイト</h1>
+    <p class="hero-sub">あなたの街のアルバイト・パート情報を探そう！</p>
+  </header>
 
-    <header class="text-center mb-6">
-      <h1 class="text-2xl md:text-3xl font-bold text-gray-900">あなたの街のアルバイト・パート情報を探そう！</h1>
-      <p class="text-orange-600 mt-1">LINEでかんたん応募できるアルバイト情報サイト</p>
-    </header>
+  <main class="container">
+    <div id="search-form"></div>
+    <div id="results"></div>
+  </main>
 
-    <div id="search-form" class="mb-6"></div>
-    <div id="search-results"></div>
-
-    <!-- 詳細モーダル -->
-    <div id="detail-modal" class="fixed inset-0 bg-black/50 hidden z-50 overflow-y-auto">
-      <div class="min-h-screen px-3 py-6">
-        <div class="bg-white rounded-xl max-w-3xl mx-auto">
-          <div id="detail-content"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- libs -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-
-  <!-- app -->
-  <script src="js/data.js"></script>
-  <script src="js/components/SearchForm.js"></script>
-  <script src="js/components/SearchResults.js"></script>
-  <script src="js/components/Detail.js"></script>
-  <script src="js/app.js"></script>
+  <script src="./js/prefCities.js"></script>
+  <script src="./js/data.js"></script>
+  <script src="./js/components/SearchResults.js"></script>
+  <script src="./js/components/Detail.js"></script>
+  <script src="./js/components/SearchForm.js"></script>
+  <script src="./js/app.js"></script>
 </body>
 </html>
