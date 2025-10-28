@@ -401,6 +401,26 @@ class SearchForm {
     });
   }
 
+  // 市のON/OFF（区も一括・親も自動）
+  setCityChecked(pref, city, checked) {
+    // 市自身
+    this._set(checked, `${pref}/${city}`);
+
+    // 区を全て巻き込む
+    const wards = this.getWards(pref, city) || [];
+    wards.forEach(w => this._set(checked, `${pref}/${city}/${w}`));
+
+    if (checked) {
+      // 子をONにしたら親もON
+      this._set(true, pref);
+    } else {
+      // 市をOFFにした結果、都道府県の子が空なら府県もOFF
+      if (!this._hasAnyChildrenUnderPref(pref)) {
+        this._set(false, pref);
+      }
+    }
+  }
+
   /* ------------------------------
    * チェック状態 同期/装飾
    * ------------------------------ */
@@ -437,11 +457,9 @@ class SearchForm {
    * 親子連動ロジック（勤務地）
    * ------------------------------ */
 
-  // 都道府県の一括 ON/OFF
+  // 都道府県の一括 ON/OFF（既存のままでOK）
   setPrefChecked(pref, checked){
-    // 自身
     this._set(checked, `${pref}`);
-    // 配下の city / ward を全て
     const { type, cities, wardsMap } = this.getPrefData(pref);
     cities.forEach(city=>{
       this._set(checked, `${pref}/${city}`);
@@ -455,7 +473,7 @@ class SearchForm {
     this._set(checked, `${pref}/${city}/${ward}`);
 
     if (checked) {
-      // ✅ 子をONにしたら親もON
+      // 子をONにしたら親もON
       this._set(true, `${pref}/${city}`);
       this._set(true, pref);
     } else {
@@ -463,9 +481,8 @@ class SearchForm {
       if (!this._hasAnyWard(pref, city)) {
         this._set(false, `${pref}/${city}`);
       }
-
-      // 都道府県配下の全ての市・区がOFFなら府県もOFF
-      if (!this._hasAnyUnderPref(pref)) {
+      // 都道府県配下（pref/〜）に子が何も無ければ府県もOFF
+      if (!this._hasAnyChildrenUnderPref(pref)) {
         this._set(false, pref);
       }
     }
@@ -490,7 +507,13 @@ class SearchForm {
     else this._tempLoc.delete(loc);
   }
 
-  // 市配下に一つでも選択があるか（市 or 区）
+  // 都道府県配下に「子（市/区）」が残っているか？（親自身は除外）
+  _hasAnyChildrenUnderPref(pref) {
+    const prefix = `${pref}/`;
+    return Array.from(this._tempLoc).some(loc => loc.startsWith(prefix));
+  }
+
+  // 市配下に何か残っているか（市そのもの or その区）
   _hasAnyUnderCity(pref, city){
     const cityKey = `${pref}/${city}`;
     const prefix = `${cityKey}/`;
@@ -500,13 +523,10 @@ class SearchForm {
     return false;
   }
 
-  // 市内の「区」のみで判定（＝区が0なら false）
-  _hasAnyWardUnderCity(pref, city){
+  // 市内の「区」が1つでも残っているか（区のみ）
+  _hasAnyWard(pref, city) {
     const prefix = `${pref}/${city}/`;
-    for (const loc of this._tempLoc) {
-      if (loc.startsWith(prefix)) return true;
-    }
-    return false;
+    return Array.from(this._tempLoc).some(loc => loc.startsWith(prefix));
   }
 
   /* ------------------------------
