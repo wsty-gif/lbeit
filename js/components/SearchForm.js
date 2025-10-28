@@ -193,8 +193,9 @@ class SearchForm {
     regionMenu.innerHTML=regions.map((r,i)=>`
       <li>
         <button class="side-btn ${i===0?"active":""}" data-region="${r}"
-          style="width:100%;text-align:left;padding:10px;font-size:15px;background:${i===0?"#eaeaea":"#fafafa"};border:none;">
-          ${r}<span class="region-dot" data-region-dot="${r}" style="display:none;margin-left:8px;width:8px;height:8px;background:#e53935;border-radius:50%;vertical-align:middle;"></span>
+          style="width:100%;text-align:left;padding:10px;font-size:15px;background:${i===0?"#eaeaea":"#fafafa"};border:none;display:inline-flex;align-items:center;gap:6px;">
+          <span>${r}</span>
+          <span class="region-dot" data-region-dot="${r}" style="display:none;width:8px;height:8px;background:#e53935;border-radius:50%;"></span>
         </button>
       </li>`).join("");
 
@@ -450,7 +451,11 @@ class SearchForm {
         this._set(false, `${pref}`);
       }
     }
+    // ✅ UIを再描画
+    this.syncCheckboxesIn(document.getElementById("page-loc"));
+    this.updateRegionDots();
   }
+
 
   // temp セット操作
   _set(on, loc){
@@ -458,23 +463,24 @@ class SearchForm {
     else this._tempLoc.delete(loc);
   }
 
-  // ある都道府県配下に一つでも選択があるか
+  // 都道府県配下に一つでも選択があるか
   _hasAnyUnderPref(pref){
+    const prefix = `${pref}/`;
     for (const loc of this._tempLoc) {
-      if (loc === pref || loc.startsWith(pref + "/")) return true;
+      if (loc === pref || loc.startsWith(prefix)) return true;
     }
     return false;
   }
 
-  // ある市配下に一つでも選択があるか
+  // 市配下に一つでも選択があるか
   _hasAnyUnderCity(pref, city){
     const prefix = `${pref}/${city}/`;
-    if (this._tempLoc.has(`${pref}/${city}`)) return true; // 市そのものがON
     for (const loc of this._tempLoc) {
-      if (loc.startsWith(prefix)) return true;
+      if (loc === `${pref}/${city}` || loc.startsWith(prefix)) return true;
     }
     return false;
   }
+
 
   /* ------------------------------
    * 職種ページ
