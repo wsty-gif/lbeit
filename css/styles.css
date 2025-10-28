@@ -650,3 +650,136 @@ html, body {
 
 /* 画像角丸陰影（高齢者にも視認性◎） */
 img{image-rendering:auto}
+
+/* ===============================
+   検索モーダル共通スタイル
+   =============================== */
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.modal.show {
+  display: flex;
+}
+.modal .panel {
+  background: #fff;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal .card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.modal .head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+}
+.modal .body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+}
+.modal .foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid #eee;
+}
+
+/* ===============================
+   モーダル内部のリスト構造
+   =============================== */
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 0;
+  height: 100%;
+}
+
+.side-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-right: 1px solid #ddd;
+  background: #fafafa;
+  overflow-y: auto;
+}
+.side-list li {
+  border-bottom: 1px solid #eee;
+}
+.side-btn {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+.side-btn.active {
+  background: #f0f0f0;
+  font-weight: bold;
+}
+
+.pref-block {
+  border-bottom: 1px solid #eee;
+  padding: 8px 0;
+}
+.pref-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.city-block {
+  padding-left: 12px;
+}
+.city-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 3px 0;
+}
+.inner {
+  padding-left: 14px;
+  margin-top: 4px;
+}
+.hidden {
+  display: none;
+}
+
+.opt {
+  display: block;
+  padding: 4px 0;
+  font-size: 14px;
+}
+
+.checkbox {
+  margin-right: 6px;
+}
+.toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px;
+  color: #444;
+}
