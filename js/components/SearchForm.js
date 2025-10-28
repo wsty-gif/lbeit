@@ -7,6 +7,7 @@ class SearchForm {
     this.render();
   }
 
+  /** ========== 基本描画 ========== */
   async render() {
     const ds = await DataService.distincts();
     this.ds = ds;
@@ -19,310 +20,412 @@ class SearchForm {
             <input id="sf-key" class="input" placeholder="例：カフェ／接客／倉庫" />
           </div>
 
-          <div class="search-condition">
-            <div class="cond-row" id="open-loc">
-              <span class="cond-label">勤務地</span>
-              <span class="cond-value" id="val-loc">未設定</span>
-              <span class="cond-arrow">＞</span>
-            </div>
-            <div class="cond-row" id="open-job">
-              <span class="cond-label">職種</span>
-              <span class="cond-value" id="val-job">未設定</span>
-              <span class="cond-arrow">＞</span>
-            </div>
-            <div class="cond-row" id="open-pref">
-              <span class="cond-label">こだわり条件</span>
-              <span class="cond-value" id="val-pref">未設定</span>
-              <span class="cond-arrow">＞</span>
-            </div>
+          <div class="search-condition" style="border:1px solid #e5e5e5;border-radius:8px;background:#fff;overflow:hidden;">
+            ${this.condRowTpl("loc","勤務地")}
+            ${this.condRowTpl("job","職種")}
+            ${this.condRowTpl("pref","こだわり条件")}
           </div>
 
           <button id="btn-search" class="btn btn-primary">この条件で検索する</button>
         </div>
       </div>
-
-      <div id="slide-container">
-        <div id="page-loc" class="slide-page"><div class="slide-inner"></div></div>
-        <div id="page-job" class="slide-page"><div class="slide-inner"></div></div>
-        <div id="page-pref" class="slide-page"><div class="slide-inner"></div></div>
-      </div>
     `;
 
-    // イベント設定
+    // 入力
     this.el.querySelector("#sf-key").addEventListener("input", e => {
       this.state.keyword = e.target.value.trim();
     });
 
+    // クリック（スライドオープン）
     this.el.querySelector("#open-loc").addEventListener("click", () => this.openSlide("loc"));
     this.el.querySelector("#open-job").addEventListener("click", () => this.openSlide("job"));
     this.el.querySelector("#open-pref").addEventListener("click", () => this.openSlide("pref"));
 
+    // 検索
     this.el.querySelector("#btn-search").addEventListener("click", () => this.applySearch());
 
+    // スライドページDOMを<body>直下へ用意（CSS不要のインライン制御）
+    this.ensureSlideContainer();
+
+    // 各ページ構築
     this.buildLocationPage();
     this.buildJobPage();
     this.buildPrefPage();
+
+    // ラベル初期化
     this.updateConditionLabels();
   }
 
-  /** ラベル表示更新 */
-  updateConditionLabels() {
-    const loc = this.state.locations.length
-      ? this.state.locations.slice(0, 2).join("、") + (this.state.locations.length > 2 ? " ほか" : "")
-      : "未設定";
-    const job = this.state.jobs.length
-      ? this.state.jobs.slice(0, 2).join("、") + (this.state.jobs.length > 2 ? " ほか" : "")
-      : "未設定";
-    const pref = this.state.prefs.length
-      ? this.state.prefs.slice(0, 2).join("、") + (this.state.prefs.length > 2 ? " ほか" : "")
-      : "未設定";
+  condRowTpl(key, label) {
+    return `
+      <div class="cond-row" id="open-${key}"
+        style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #eee;cursor:pointer;">
+        <span class="cond-label" style="font-weight:600;">${label}</span>
+        <span class="cond-value" id="val-${key}" style="flex:1;text-align:right;color:#666;margin-right:8px;">未設定</span>
+        <span class="cond-arrow" style="color:#888;">＞</span>
+      </div>
+    `;
+  }
 
+  /** ========== ラベル更新 ========== */
+  updateConditionLabels() {
+    const txt = (arr) => arr.length
+      ? arr.slice(0,2).join("、") + (arr.length>2 ? " ほか" : "")
+      : "未設定";
+    const loc = txt(this.state.locations);
+    const job = txt(this.state.jobs);
+    const pref = txt(this.state.prefs);
     this.el.querySelector("#val-loc").textContent = loc;
     this.el.querySelector("#val-job").textContent = job;
     this.el.querySelector("#val-pref").textContent = pref;
   }
 
-  /** スライドページ開閉 */
+  /** ========== スライドコンテナ生成（インラインスタイルで動かす） ========== */
+  ensureSlideContainer() {
+    if (document.getElementById("slide-container")) return;
+
+    const wrap = document.createElement("div");
+    wrap.id = "slide-container";
+    Object.assign(wrap.style, {
+      position: "fixed",
+      inset: "0",
+      overflow: "hidden",
+      zIndex: "2000",
+      pointerEvents: "none" // 閉じてる間はクリック無効
+    });
+
+    const mkPage = (id) => {
+      const p = document.createElement("div");
+      p.id = `page-${id}`;
+      p.className = "slide-page";
+      Object.assign(p.style, {
+        position: "absolute",
+        top: "0",
+        left: "0",
+        width: "100%",
+        height: "100%",
+        background: "#fff",
+        transform: "translateX(100%)",
+        transition: "transform 0.35s ease",
+        display: "flex",
+        flexDirection: "column",
+        visibility: "hidden"
+      });
+      const inner = document.createElement("div");
+      inner.className = "slide-inner";
+      Object.assign(inner.style, {
+        display: "flex",
+        flexDirection: "column",
+        height: "100%"
+      });
+      p.appendChild(inner);
+      return p;
+    };
+
+    wrap.appendChild(mkPage("loc"));
+    wrap.appendChild(mkPage("job"));
+    wrap.appendChild(mkPage("pref"));
+
+    document.body.appendChild(wrap);
+
+    // ESCで閉じる
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        ["loc","job","pref"].forEach(k => this.closeSlide(k));
+      }
+    });
+  }
+
+  /** ========== 開閉（CSS不要のJS制御） ========== */
   openSlide(key) {
-    const target = document.querySelector(`#page-${key}`);
-    document.querySelector("#slide-container").classList.add("show");
-    target.classList.add("active");
+    const container = document.getElementById("slide-container");
+    if (!container) return;
+    container.style.pointerEvents = "auto"; // 有効化
+
+    const page = document.getElementById(`page-${key}`);
+    if (!page) return;
+    page.style.visibility = "visible";
+    // リフロー後にトランジション
+    requestAnimationFrame(() => {
+      page.style.transform = "translateX(0)";
+    });
   }
 
   closeSlide(key) {
-    const target = document.querySelector(`#page-${key}`);
-    target.classList.remove("active");
-    document.querySelector("#slide-container").classList.remove("show");
+    const container = document.getElementById("slide-container");
+    const page = document.getElementById(`page-${key}`);
+    if (!page) return;
+    page.style.transform = "translateX(100%)";
+    // アニメ後に不可視
+    setTimeout(() => {
+      page.style.visibility = "hidden";
+      // 全ページ閉なら pointer-events を無効化
+      const openExists = ["loc","job","pref"].some(k => {
+        const p = document.getElementById(`page-${k}`);
+        return p && p.style.visibility === "visible";
+      });
+      if (!openExists && container) {
+        container.style.pointerEvents = "none";
+      }
+    }, 360);
   }
 
-  /** 勤務地ページ */
+  /** ========== ページヘッダ共通 ========== */
+  headerTpl(title, backId) {
+    return `
+      <div class="slide-header"
+        style="display:flex;align-items:center;gap:10px;padding:14px;border-bottom:1px solid #eee;background:#fafafa;">
+        <button class="back-btn" id="${backId}" style="background:transparent;border:none;font-size:18px;cursor:pointer;">＜</button>
+        <h3 style="font-size:18px;font-weight:600;margin:0;">${title}</h3>
+      </div>
+    `;
+  }
+
+  /** ========== 勤務地ページ ========== */
   buildLocationPage() {
-    const container = document.querySelector("#page-loc .slide-inner");
-    container.innerHTML = `
-      <div class="slide-header">
-        <button class="back-btn" id="back-loc">＜</button>
-        <h3>勤務地</h3>
+    const page = document.querySelector("#page-loc .slide-inner");
+    page.innerHTML = `
+      ${this.headerTpl("勤務地", "back-loc")}
+      <div class="slide-content" style="flex:1;overflow:auto;padding:16px;display:grid;grid-template-columns:33% 67%;gap:12px;">
+        <ul id="region-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
+        <div id="pref-wrap"></div>
       </div>
-      <div class="slide-content">
-        <div class="grid-3">
-          <ul class="side-list" id="region-menu"></ul>
-          <div id="pref-wrap"></div>
-        </div>
-      </div>
-      <div class="slide-footer">
+      <div class="slide-footer" style="padding:10px 16px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:8px;">
         <button class="btn" id="clear-loc">クリア</button>
         <button class="btn btn-primary" id="apply-loc">内容を反映する</button>
       </div>
     `;
 
-    document.querySelector("#back-loc").onclick = () => this.closeSlide("loc");
+    document.getElementById("back-loc").onclick = () => this.closeSlide("loc");
 
-    const regionMenu = container.querySelector("#region-menu");
-    const prefWrap = container.querySelector("#pref-wrap");
+    const regionMenu = page.querySelector("#region-menu");
+    const prefWrap = page.querySelector("#pref-wrap");
     const regions = Object.keys(this.ds.REGION_PREFS);
 
-    regionMenu.innerHTML = regions
-      .map((r, i) => `<li><button class="side-btn ${i === 0 ? "active" : ""}" data-region="${r}">${r}</button></li>`)
-      .join("");
+    // 左カラム：大括り
+    regionMenu.innerHTML = regions.map((r,i)=>`
+      <li>
+        <button class="side-btn ${i===0?"active":""}" data-region="${r}"
+          style="width:100%;text-align:left;padding:10px 12px;border:none;background:${i===0?"#eaeaea":"#fafafa"};cursor:pointer;${i===0?"font-weight:600;":""}">
+          ${r}
+        </button>
+      </li>
+    `).join("");
 
-    const renderPrefs = region => {
+    const renderPrefs = (region) => {
       const prefs = this.ds.REGION_PREFS[region] || [];
-      prefWrap.innerHTML = prefs
-        .map(
-          pref => `
-          <div class="pref-block">
-            <div class="pref-head">
-              <span>${pref}</span>
-              <button class="toggle" data-pref="${pref}">＋</button>
-            </div>
-            <div class="inner hidden" data-city-list="${pref}"></div>
+      prefWrap.innerHTML = prefs.map(pref => `
+        <div class="pref-block" style="border-bottom:1px solid #eee;padding:8px 0;">
+          <div class="pref-head" style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600">${pref}</span>
+            <button class="toggle" data-pref="${pref}" style="background:transparent;border:none;cursor:pointer;font-weight:bold;font-size:16px;color:#444">＋</button>
           </div>
-        `
-        )
-        .join("");
+          <div class="inner hidden" data-city-list="${pref}" style="display:none;padding-left:12px;margin-top:4px;"></div>
+        </div>
+      `).join("");
 
+      // 都道府県＋ → 市・区の展開
       prefWrap.querySelectorAll(".toggle").forEach(btn => {
         btn.addEventListener("click", () => {
           const pref = btn.getAttribute("data-pref");
           const list = prefWrap.querySelector(`[data-city-list="${pref}"]`);
-          const isHidden = list.classList.contains("hidden");
-          if (isHidden) {
-            const cities = PREF_CITY_DATA[pref] || {};
-            list.innerHTML = Object.keys(cities)
-              .map(city => {
-                const wards = cities[city];
-                const hasWards = Array.isArray(wards) && wards.length > 0;
-                return `
-                  <div class="city-block">
-                    <div class="city-head">
-                      <label class="opt"><input class="checkbox" type="checkbox" data-loc="${pref}/${city}"> ${city}</label>
-                      ${hasWards ? `<button class="toggle" data-city="${city}">＋</button>` : ""}
-                    </div>
-                    ${
-                      hasWards
-                        ? `<div class="inner hidden" data-ward-list="${city}">
-                            ${wards
-                              .map(
-                                w =>
-                                  `<label class="opt"><input class="checkbox" type="checkbox" data-loc="${pref}/${city}/${w}"> ${w}</label>`
-                              )
-                              .join("")}
-                          </div>`
-                        : ""
-                    }
-                  </div>
-                `;
-              })
-              .join("");
+          const isHidden = list.style.display === "none";
 
-            // 区の開閉
+          if (isHidden) {
+            const citiesObj = (window.PREF_CITY_DATA && window.PREF_CITY_DATA[pref]) || {};
+            const cityNames = Object.keys(citiesObj); // {京都市:[区...], 宇治市:[]}
+            list.innerHTML = cityNames.map(city => {
+              const wards = Array.isArray(citiesObj[city]) ? citiesObj[city] : [];
+              const hasWards = wards.length > 0;
+              return `
+                <div class="city-block" style="padding:6px 0;">
+                  <div class="city-head" style="display:flex;justify-content:space-between;align-items:center;">
+                    <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
+                      <input class="checkbox" type="checkbox" data-loc="${pref}/${city}" style="margin-right:6px;"> ${city}
+                    </label>
+                    ${hasWards ? `<button class="toggle" data-city="${city}" style="background:transparent;border:none;cursor:pointer;font-weight:bold;font-size:16px;color:#444">＋</button>` : ""}
+                  </div>
+                  ${hasWards ? `
+                    <div class="inner hidden" data-ward-list="${city}" style="display:none;padding-left:12px;margin-top:4px;">
+                      ${wards.map(w => `
+                        <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
+                          <input class="checkbox" type="checkbox" data-loc="${pref}/${city}/${w}" style="margin-right:6px;"> ${w}
+                        </label>
+                      `).join("")}
+                    </div>
+                  ` : ""}
+                </div>
+              `;
+            }).join("");
+
+            // 区展開
             list.querySelectorAll("[data-city]").forEach(b => {
               b.addEventListener("click", () => {
                 const city = b.getAttribute("data-city");
                 const w = list.querySelector(`[data-ward-list="${city}"]`);
-                const h = w.classList.contains("hidden");
-                w.classList.toggle("hidden", !h);
-                b.textContent = h ? "－" : "＋";
+                const isHiddenWard = w && (w.style.display === "none");
+                if (w) {
+                  w.style.display = isHiddenWard ? "block" : "none";
+                  b.textContent = isHiddenWard ? "－" : "＋";
+                }
               });
             });
 
-            list.classList.remove("hidden");
+            list.style.display = "block";
             btn.textContent = "－";
           } else {
-            list.classList.add("hidden");
+            list.style.display = "none";
             btn.textContent = "＋";
           }
         });
       });
     };
 
+    // 地域切替
     regionMenu.querySelectorAll(".side-btn").forEach(btn => {
       btn.addEventListener("click", () => {
-        regionMenu.querySelectorAll(".side-btn").forEach(b => b.classList.remove("active"));
+        regionMenu.querySelectorAll(".side-btn").forEach(b => {
+          b.classList.remove("active");
+          b.style.background = "#fafafa";
+          b.style.fontWeight = "normal";
+        });
         btn.classList.add("active");
+        btn.style.background = "#eaeaea";
+        btn.style.fontWeight = "600";
         renderPrefs(btn.getAttribute("data-region"));
       });
     });
+
     renderPrefs(regions[0]);
 
-    document.querySelector("#clear-loc").onclick = () => {
+    // クリア・反映
+    document.getElementById("clear-loc").onclick = () => {
       this.state.locations = [];
       this.updateConditionLabels();
     };
-    document.querySelector("#apply-loc").onclick = () => {
-      const checked = Array.from(document.querySelectorAll('#page-loc input[type="checkbox"]:checked')).map(c =>
-        c.getAttribute("data-loc")
-      );
+    document.getElementById("apply-loc").onclick = () => {
+      const checked = Array.from(document.querySelectorAll('#page-loc input[type="checkbox"]:checked'))
+        .map(c => c.getAttribute("data-loc"));
       this.state.locations = checked;
       this.updateConditionLabels();
       this.closeSlide("loc");
     };
   }
 
-  /** 職種ページ */
+  /** ========== 職種ページ ========== */
   buildJobPage() {
-    const container = document.querySelector("#page-job .slide-inner");
-    container.innerHTML = `
-      <div class="slide-header">
-        <button class="back-btn" id="back-job">＜</button>
-        <h3>職種</h3>
-      </div>
-      <div class="slide-content">
-        <input id="job-key" class="input" placeholder="職種をフリーワードで探す" style="margin-bottom:10px">
+    const page = document.querySelector("#page-job .slide-inner");
+    page.innerHTML = `
+      ${this.headerTpl("職種", "back-job")}
+      <div class="slide-content" style="flex:1;overflow:auto;padding:16px;display:block;">
+        <input id="job-key" class="input" placeholder="職種をフリーワードで探す" style="margin-bottom:10px;width:100%;">
         <div id="job-list" style="display:flex;flex-direction:column;gap:8px;">
-          ${this.ds.jobCategories.map(
-            j => `<label class="opt"><input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}</label>`
-          ).join("")}
+          ${this.ds.jobCategories.map(j => `
+            <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
+              <input class="checkbox job-chk" type="checkbox" value="${j}" style="margin-right:6px;"> ${j}
+            </label>
+          `).join("")}
         </div>
       </div>
-      <div class="slide-footer">
+      <div class="slide-footer" style="padding:10px 16px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:8px;">
         <button class="btn" id="clear-job">クリア</button>
         <button class="btn btn-primary" id="apply-job">内容を反映する</button>
       </div>
     `;
 
-    document.querySelector("#back-job").onclick = () => this.closeSlide("job");
+    document.getElementById("back-job").onclick = () => this.closeSlide("job");
 
     const filter = () => {
-      const q = (document.querySelector("#job-key").value || "").trim();
+      const q = (document.getElementById("job-key").value || "").trim();
       const items = this.ds.jobCategories.filter(j => j.includes(q));
-      document.getElementById("job-list").innerHTML = items
-        .map(j => `<label class="opt"><input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}</label>`)
-        .join("");
+      document.getElementById("job-list").innerHTML = items.map(j => `
+        <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
+          <input class="checkbox job-chk" type="checkbox" value="${j}" style="margin-right:6px;"> ${j}
+        </label>
+      `).join("");
     };
-    document.querySelector("#job-key").addEventListener("input", filter);
+    document.getElementById("job-key").addEventListener("input", filter);
 
-    document.querySelector("#clear-job").onclick = () => {
+    document.getElementById("clear-job").onclick = () => {
       this.state.jobs = [];
       this.updateConditionLabels();
     };
-    document.querySelector("#apply-job").onclick = () => {
-      const checked = Array.from(document.querySelectorAll(".job-chk:checked")).map(c => c.value);
+    document.getElementById("apply-job").onclick = () => {
+      const checked = Array.from(document.querySelectorAll("#page-job .job-chk:checked")).map(c => c.value);
       this.state.jobs = checked;
       this.updateConditionLabels();
       this.closeSlide("job");
     };
   }
 
-  /** こだわり条件ページ */
+  /** ========== こだわり条件ページ ========== */
   buildPrefPage() {
-    const container = document.querySelector("#page-pref .slide-inner");
-    container.innerHTML = `
-      <div class="slide-header">
-        <button class="back-btn" id="back-pref">＜</button>
-        <h3>こだわり条件</h3>
+    const page = document.querySelector("#page-pref .slide-inner");
+    page.innerHTML = `
+      ${this.headerTpl("こだわり条件", "back-pref")}
+      <div class="slide-content" style="flex:1;overflow:auto;padding:16px;display:grid;grid-template-columns:33% 67%;gap:12px;">
+        <ul id="pref-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
+        <div id="pref-wrap"></div>
       </div>
-      <div class="slide-content">
-        <div class="grid-3">
-          <ul class="side-list" id="pref-menu"></ul>
-          <div id="pref-wrap"></div>
-        </div>
-      </div>
-      <div class="slide-footer">
+      <div class="slide-footer" style="padding:10px 16px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:8px;">
         <button class="btn" id="clear-pref">クリア</button>
         <button class="btn btn-primary" id="apply-pref">内容を反映する</button>
       </div>
     `;
 
-    document.querySelector("#back-pref").onclick = () => this.closeSlide("pref");
+    document.getElementById("back-pref").onclick = () => this.closeSlide("pref");
 
-    const menu = container.querySelector("#pref-menu");
-    const wrap = container.querySelector("#pref-wrap");
+    const menu = page.querySelector("#pref-menu");
+    const wrap = page.querySelector("#pref-wrap");
     const cats = Object.keys(this.ds.preferences);
-    menu.innerHTML = cats
-      .map((c, i) => `<li><button class="side-btn ${i === 0 ? "active" : ""}" data-cat="${c}">${c}</button></li>`)
-      .join("");
 
-    const renderCat = cat => {
+    menu.innerHTML = cats.map((c,i)=>`
+      <li>
+        <button class="side-btn ${i===0?"active":""}" data-cat="${c}"
+          style="width:100%;text-align:left;padding:10px 12px;border:none;background:${i===0?"#eaeaea":"#fafafa"};cursor:pointer;${i===0?"font-weight:600;":""}">
+          ${c}
+        </button>
+      </li>
+    `).join("");
+
+    const renderCat = (cat) => {
       const opts = this.ds.preferences[cat] || [];
-      wrap.innerHTML = opts
-        .map(o => `<label class="opt"><input class="checkbox pref-chk" type="checkbox" value="${o}"> ${o}</label>`)
-        .join("");
+      wrap.innerHTML = opts.map(o => `
+        <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
+          <input class="checkbox pref-chk" type="checkbox" value="${o}" style="margin-right:6px;"> ${o}
+        </label>
+      `).join("");
     };
 
     menu.querySelectorAll(".side-btn").forEach(btn => {
       btn.addEventListener("click", () => {
-        menu.querySelectorAll(".side-btn").forEach(b => b.classList.remove("active"));
+        menu.querySelectorAll(".side-btn").forEach(b => {
+          b.classList.remove("active");
+          b.style.background = "#fafafa";
+          b.style.fontWeight = "normal";
+        });
         btn.classList.add("active");
+        btn.style.background = "#eaeaea";
+        btn.style.fontWeight = "600";
         renderCat(btn.getAttribute("data-cat"));
       });
     });
 
     renderCat(cats[0]);
 
-    document.querySelector("#clear-pref").onclick = () => {
+    document.getElementById("clear-pref").onclick = () => {
       this.state.prefs = [];
       this.updateConditionLabels();
     };
-    document.querySelector("#apply-pref").onclick = () => {
-      const checked = Array.from(document.querySelectorAll(".pref-chk:checked")).map(c => c.value);
+    document.getElementById("apply-pref").onclick = () => {
+      const checked = Array.from(document.querySelectorAll("#page-pref .pref-chk:checked")).map(c => c.value);
       this.state.prefs = checked;
       this.updateConditionLabels();
       this.closeSlide("pref");
     };
   }
 
-  /** 検索実行 */
+  /** ========== 検索 ========== */
   async applySearch() {
     const all = await DataService.getAllAccounts();
     const k = (this.state.keyword || "").toLowerCase();
