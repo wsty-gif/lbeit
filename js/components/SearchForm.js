@@ -619,5 +619,3 @@ class SearchForm {
     this.onSearch(filtered);
   }
 }
-
-export default SearchForm;
