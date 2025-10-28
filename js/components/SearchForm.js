@@ -47,16 +47,13 @@ class SearchForm {
             <input id="sf-key" class="input" placeholder="例：カフェ／接客／倉庫" />
           </div>
 
-          <div class="search-condition" style="border:1px solid #e5e5e5;border-radius:8px;background:#fff;overflow:hidden;">
-            ${this.condRowTpl("loc","勤務地")}
-            ${this.condRowTpl("job","職種")}
-            ${this.condRowTpl("pref","こだわり条件")}
-          </div>
+          ${this.condRow("loc", "勤務地", "fa-solid fa-location-dot")}
+          ${this.condRow("job", "職種", "fa-solid fa-briefcase")}
+          ${this.condRow("pref", "こだわり条件", "fa-solid fa-star")}
 
           <button id="btn-search" class="btn btn-primary">この条件で検索する</button>
         </div>
-      </div>
-    `;
+      </div>`;
 
     // 入力イベント
     this.el.querySelector("#sf-key").addEventListener("input", e => {
@@ -86,13 +83,23 @@ class SearchForm {
   /* ------------------------------
    * 共通UI片
    * ------------------------------ */
-  condRowTpl(key, label) {
+  condRow(key, label, icon) {
+    const value = this.state[key + "ations"] || [];
+    const hasValue = value.length > 0;
+    const valText = hasValue
+      ? value.slice(0, 3).join("、") + (value.length > 3 ? " ほか" : "")
+      : "未設定";
+
     return `
-      <div class="cond-row" id="open-${key}"
-        style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #eee;cursor:pointer;">
-        <span style="font-weight:600;">${label}</span>
-        <span id="val-${key}" style="flex:1;text-align:right;color:#666;margin-right:8px;">未設定</span>
-        <span style="color:#888;">＞</span>
+      <div class="cond-row" id="open-${key}" style="border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <i class="${icon}" style="color:#e53935;font-size:1.1rem;"></i>
+            <span style="font-weight:600;">${label}</span>
+          </div>
+          ${hasValue ? `<span class="clear-btn" data-clear="${key}" style="color:#007bff;font-size:0.9rem;">条件をクリア</span>` : ""}
+        </div>
+        <div style="margin-left:28px;color:#444;margin-top:2px;">${valText}</div>
       </div>`;
   }
 
