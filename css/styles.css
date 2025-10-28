@@ -907,7 +907,6 @@ label.opt {
   to { transform: scale(1); opacity: 1; }
 }
 
-/* --- 条件設定画面の固定フッター --- */
 .footer-buttons {
   position: fixed;
   bottom: 0;
@@ -922,8 +921,6 @@ label.opt {
   z-index: 1000;
   gap: 12px;
 }
-
-/* --- クリアボタン --- */
 .footer-buttons .btn-clear {
   flex: 0 0 25%;
   background: #fff;
@@ -934,14 +931,7 @@ label.opt {
   border-radius: 8px;
   padding: 12px 0;
   text-align: center;
-  transition: all 0.2s ease;
-  box-sizing: border-box;
 }
-.footer-buttons .btn-clear:hover {
-  background: #f8f8f8;
-}
-
-/* --- 内容を反映するボタン --- */
 .footer-buttons .btn-apply {
   flex: 0 0 70%;
   background: #e53935;
@@ -952,9 +942,11 @@ label.opt {
   border-radius: 8px;
   padding: 13px 0;
   text-align: center;
-  transition: background 0.2s ease;
-  box-sizing: border-box;
 }
+
 .footer-buttons .btn-apply:hover {
   background: #d32f2f;
+}
+.footer-buttons .btn-clear:hover {
+  background: #f8f8f8;
 }

@@ -190,12 +190,12 @@ class SearchForm {
         <ul id="region-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
         <div id="pref-wrap"></div>
       </div>
-      <div class="foot">
-        <button class="btn" data-clear-loc>クリア</button>
-        <div style="flex:1"></div>
-        <button class="btn btn-primary" data-apply-loc>内容を反映する</button>
+      <div class="footer-buttons">
+        <button class="btn-clear" id="clear-loc">クリア</button>
+        <button class="btn-apply" id="apply-loc">内容を反映する</button>
       </div>
     `;
+
 
     document.getElementById("back-loc").onclick = () => this.closeSlide("loc");
 
@@ -408,8 +408,8 @@ const renderPrefs = (region) => {
         </div>
       </div>
       <div class="footer-buttons">
-        <button class="btn-clear" data-clear-loc>クリア</button>
-        <button class="btn-apply" data-apply-loc>内容を反映する</button>
+        <button class="btn-clear" id="clear-job">クリア</button>
+        <button class="btn-apply" id="apply-job">内容を反映する</button>
       </div>
     `;
 
@@ -447,12 +447,12 @@ const renderPrefs = (region) => {
         <ul id="pref-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
         <div id="pref-wrap"></div>
       </div>
-      <div class="foot">
-        <button class="btn" data-clear-loc>クリア</button>
-        <div style="flex:1"></div>
-        <button class="btn btn-primary" data-apply-loc>内容を反映する</button>
+      <div class="footer-buttons">
+        <button class="btn-clear" id="clear-pref">クリア</button>
+        <button class="btn-apply" id="apply-pref">内容を反映する</button>
       </div>
     `;
+
 
     document.getElementById("back-pref").onclick = () => this.closeSlide("pref");
 
