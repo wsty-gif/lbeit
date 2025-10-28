@@ -14,7 +14,6 @@ class SearchForm {
     this.el.innerHTML = `
       <div class="card">
         <div style="display:grid;gap:16px;">
-
           <div>
             <label class="block text-sm font-semibold mb-1">キーワード検索</label>
             <input id="sf-key" class="input" placeholder="例：カフェ／接客／倉庫" />
@@ -42,9 +41,11 @@ class SearchForm {
         </div>
       </div>
 
-      ${this.modalTpl("loc", "勤務地")}
-      ${this.modalTpl("job", "職種")}
-      ${this.modalTpl("pref", "こだわり条件")}
+      <div id="slide-container">
+        <div id="page-loc" class="slide-page"><div class="slide-inner"></div></div>
+        <div id="page-job" class="slide-page"><div class="slide-inner"></div></div>
+        <div id="page-pref" class="slide-page"><div class="slide-inner"></div></div>
+      </div>
     `;
 
     // イベント設定
@@ -52,15 +53,15 @@ class SearchForm {
       this.state.keyword = e.target.value.trim();
     });
 
-    this.el.querySelector("#open-loc").addEventListener("click", () => this.openModal("loc"));
-    this.el.querySelector("#open-job").addEventListener("click", () => this.openModal("job"));
-    this.el.querySelector("#open-pref").addEventListener("click", () => this.openModal("pref"));
+    this.el.querySelector("#open-loc").addEventListener("click", () => this.openSlide("loc"));
+    this.el.querySelector("#open-job").addEventListener("click", () => this.openSlide("job"));
+    this.el.querySelector("#open-pref").addEventListener("click", () => this.openSlide("pref"));
 
     this.el.querySelector("#btn-search").addEventListener("click", () => this.applySearch());
 
-    this.buildLocationModal();
-    this.buildJobModal();
-    this.buildPrefModal();
+    this.buildLocationPage();
+    this.buildJobPage();
+    this.buildPrefPage();
     this.updateConditionLabels();
   }
 
@@ -81,54 +82,48 @@ class SearchForm {
     this.el.querySelector("#val-pref").textContent = pref;
   }
 
-  modalTpl(key, title) {
-    return `
-      <div class="modal" id="modal-${key}">
-        <div class="backdrop" data-close></div>
-        <div class="panel">
-          <div class="card">
-            <div class="head">
-              <h3>${title}</h3>
-              <button class="close" data-close><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="body" id="${key}-body"></div>
-            <div class="foot">
-              <button class="btn" data-clear-${key}>クリア</button>
-              <div style="flex:1"></div>
-              <button class="btn btn-primary" data-apply-${key}>内容を反映する</button>
-            </div>
-          </div>
+  /** スライドページ開閉 */
+  openSlide(key) {
+    const target = document.querySelector(`#page-${key}`);
+    document.querySelector("#slide-container").classList.add("show");
+    target.classList.add("active");
+  }
+
+  closeSlide(key) {
+    const target = document.querySelector(`#page-${key}`);
+    target.classList.remove("active");
+    document.querySelector("#slide-container").classList.remove("show");
+  }
+
+  /** 勤務地ページ */
+  buildLocationPage() {
+    const container = document.querySelector("#page-loc .slide-inner");
+    container.innerHTML = `
+      <div class="slide-header">
+        <button class="back-btn" id="back-loc">＜</button>
+        <h3>勤務地</h3>
+      </div>
+      <div class="slide-content">
+        <div class="grid-3">
+          <ul class="side-list" id="region-menu"></ul>
+          <div id="pref-wrap"></div>
         </div>
       </div>
-    `;
-  }
-
-  openModal(key) {
-    const modal = document.querySelector(`#modal-${key}`);
-    modal.classList.add("show");
-    modal.querySelectorAll("[data-close]").forEach(b => (b.onclick = () => modal.classList.remove("show")));
-  }
-  closeModal(key) {
-    document.querySelector(`#modal-${key}`).classList.remove("show");
-  }
-
-  /** 勤務地モーダル */
-  buildLocationModal() {
-    const body = document.querySelector("#loc-body");
-    body.innerHTML = `
-      <div class="grid-3">
-        <ul class="side-list" id="region-menu"></ul>
-        <div id="pref-wrap"></div>
+      <div class="slide-footer">
+        <button class="btn" id="clear-loc">クリア</button>
+        <button class="btn btn-primary" id="apply-loc">内容を反映する</button>
       </div>
     `;
 
-    const regionMenu = body.querySelector("#region-menu");
-    const prefWrap = body.querySelector("#pref-wrap");
+    document.querySelector("#back-loc").onclick = () => this.closeSlide("loc");
 
+    const regionMenu = container.querySelector("#region-menu");
+    const prefWrap = container.querySelector("#pref-wrap");
     const regions = Object.keys(this.ds.REGION_PREFS);
-    regionMenu.innerHTML = regions.map((r, i) => `
-      <li><button class="side-btn ${i === 0 ? "active" : ""}" data-region="${r}">${r}</button></li>
-    `).join("");
+
+    regionMenu.innerHTML = regions
+      .map((r, i) => `<li><button class="side-btn ${i === 0 ? "active" : ""}" data-region="${r}">${r}</button></li>`)
+      .join("");
 
     const renderPrefs = region => {
       const prefs = this.ds.REGION_PREFS[region] || [];
@@ -137,7 +132,7 @@ class SearchForm {
           pref => `
           <div class="pref-block">
             <div class="pref-head">
-              <span class="font-semibold">${pref}</span>
+              <span>${pref}</span>
               <button class="toggle" data-pref="${pref}">＋</button>
             </div>
             <div class="inner hidden" data-city-list="${pref}"></div>
@@ -151,7 +146,6 @@ class SearchForm {
           const pref = btn.getAttribute("data-pref");
           const list = prefWrap.querySelector(`[data-city-list="${pref}"]`);
           const isHidden = list.classList.contains("hidden");
-
           if (isHidden) {
             const cities = PREF_CITY_DATA[pref] || {};
             list.innerHTML = Object.keys(cities)
@@ -167,13 +161,13 @@ class SearchForm {
                     ${
                       hasWards
                         ? `<div class="inner hidden" data-ward-list="${city}">
-                          ${wards
-                            .map(
-                              w =>
-                                `<label class="opt"><input class="checkbox" type="checkbox" data-loc="${pref}/${city}/${w}"> ${w}</label>`
-                            )
-                            .join("")}
-                        </div>`
+                            ${wards
+                              .map(
+                                w =>
+                                  `<label class="opt"><input class="checkbox" type="checkbox" data-loc="${pref}/${city}/${w}"> ${w}</label>`
+                              )
+                              .join("")}
+                          </div>`
                         : ""
                     }
                   </div>
@@ -181,7 +175,7 @@ class SearchForm {
               })
               .join("");
 
-            // 区開閉
+            // 区の開閉
             list.querySelectorAll("[data-city]").forEach(b => {
               b.addEventListener("click", () => {
                 const city = b.getAttribute("data-city");
@@ -209,71 +203,91 @@ class SearchForm {
         renderPrefs(btn.getAttribute("data-region"));
       });
     });
-
     renderPrefs(regions[0]);
 
-    document.querySelector("[data-clear-loc]").onclick = () => {
+    document.querySelector("#clear-loc").onclick = () => {
       this.state.locations = [];
       this.updateConditionLabels();
     };
-    document.querySelector("[data-apply-loc]").onclick = () => {
-      const checked = Array.from(document.querySelectorAll('#loc-body input[type="checkbox"]:checked')).map(c =>
+    document.querySelector("#apply-loc").onclick = () => {
+      const checked = Array.from(document.querySelectorAll('#page-loc input[type="checkbox"]:checked')).map(c =>
         c.getAttribute("data-loc")
       );
       this.state.locations = checked;
       this.updateConditionLabels();
-      this.closeModal("loc");
+      this.closeSlide("loc");
     };
   }
 
-  /** 職種モーダル */
-  buildJobModal() {
-    const body = document.querySelector("#job-body");
-    const listId = "job-list";
-    body.innerHTML = `
-      <input id="job-key" class="input" placeholder="職種をフリーワードで探す" style="margin-bottom:10px">
-      <div id="${listId}" style="display:flex;flex-direction:column;gap:6px;">
-        ${this.ds.jobCategories.map(
-          j => `<label class="opt"><input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}</label>`
-        ).join("")}
+  /** 職種ページ */
+  buildJobPage() {
+    const container = document.querySelector("#page-job .slide-inner");
+    container.innerHTML = `
+      <div class="slide-header">
+        <button class="back-btn" id="back-job">＜</button>
+        <h3>職種</h3>
+      </div>
+      <div class="slide-content">
+        <input id="job-key" class="input" placeholder="職種をフリーワードで探す" style="margin-bottom:10px">
+        <div id="job-list" style="display:flex;flex-direction:column;gap:8px;">
+          ${this.ds.jobCategories.map(
+            j => `<label class="opt"><input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}</label>`
+          ).join("")}
+        </div>
+      </div>
+      <div class="slide-footer">
+        <button class="btn" id="clear-job">クリア</button>
+        <button class="btn btn-primary" id="apply-job">内容を反映する</button>
       </div>
     `;
+
+    document.querySelector("#back-job").onclick = () => this.closeSlide("job");
 
     const filter = () => {
       const q = (document.querySelector("#job-key").value || "").trim();
       const items = this.ds.jobCategories.filter(j => j.includes(q));
-      document.getElementById(listId).innerHTML = items
-        .map(
-          j => `<label class="opt"><input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}</label>`
-        )
+      document.getElementById("job-list").innerHTML = items
+        .map(j => `<label class="opt"><input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}</label>`)
         .join("");
     };
     document.querySelector("#job-key").addEventListener("input", filter);
 
-    document.querySelector("[data-clear-job]").onclick = () => {
+    document.querySelector("#clear-job").onclick = () => {
       this.state.jobs = [];
       this.updateConditionLabels();
     };
-    document.querySelector("[data-apply-job]").onclick = () => {
+    document.querySelector("#apply-job").onclick = () => {
       const checked = Array.from(document.querySelectorAll(".job-chk:checked")).map(c => c.value);
       this.state.jobs = checked;
       this.updateConditionLabels();
-      this.closeModal("job");
+      this.closeSlide("job");
     };
   }
 
-  /** こだわり条件モーダル */
-  buildPrefModal() {
-    const body = document.querySelector("#pref-body");
-    body.innerHTML = `
-      <div class="grid-3">
-        <ul class="side-list" id="pref-menu"></ul>
-        <div id="pref-wrap"></div>
+  /** こだわり条件ページ */
+  buildPrefPage() {
+    const container = document.querySelector("#page-pref .slide-inner");
+    container.innerHTML = `
+      <div class="slide-header">
+        <button class="back-btn" id="back-pref">＜</button>
+        <h3>こだわり条件</h3>
+      </div>
+      <div class="slide-content">
+        <div class="grid-3">
+          <ul class="side-list" id="pref-menu"></ul>
+          <div id="pref-wrap"></div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <button class="btn" id="clear-pref">クリア</button>
+        <button class="btn btn-primary" id="apply-pref">内容を反映する</button>
       </div>
     `;
 
-    const menu = body.querySelector("#pref-menu");
-    const wrap = body.querySelector("#pref-wrap");
+    document.querySelector("#back-pref").onclick = () => this.closeSlide("pref");
+
+    const menu = container.querySelector("#pref-menu");
+    const wrap = container.querySelector("#pref-wrap");
     const cats = Object.keys(this.ds.preferences);
     menu.innerHTML = cats
       .map((c, i) => `<li><button class="side-btn ${i === 0 ? "active" : ""}" data-cat="${c}">${c}</button></li>`)
@@ -293,17 +307,18 @@ class SearchForm {
         renderCat(btn.getAttribute("data-cat"));
       });
     });
+
     renderCat(cats[0]);
 
-    document.querySelector("[data-clear-pref]").onclick = () => {
+    document.querySelector("#clear-pref").onclick = () => {
       this.state.prefs = [];
       this.updateConditionLabels();
     };
-    document.querySelector("[data-apply-pref]").onclick = () => {
+    document.querySelector("#apply-pref").onclick = () => {
       const checked = Array.from(document.querySelectorAll(".pref-chk:checked")).map(c => c.value);
       this.state.prefs = checked;
       this.updateConditionLabels();
-      this.closeModal("pref");
+      this.closeSlide("pref");
     };
   }
 
