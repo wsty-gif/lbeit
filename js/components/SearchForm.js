@@ -450,61 +450,44 @@ class SearchForm {
     });
   }
 
-  // 市の一括 ON/OFF
-  setCityChecked(pref, city, checked){
-    this._set(checked, `${pref}/${city}`);
-
-    // 市配下の区を一括
-    const wards = this.getWards(pref, city);
-    wards.forEach(w => this._set(checked, `${pref}/${city}/${w}`));
+  // 区のON/OFF（親も自動）
+  setWardChecked(pref, city, ward, checked) {
+    this._set(checked, `${pref}/${city}/${ward}`);
 
     if (checked) {
-      // 親prefもON
-      this._set(true, `${pref}`);
+      // ✅ 子をONにしたら親もON
+      this._set(true, `${pref}/${city}`);
+      this._set(true, pref);
     } else {
-      // 市の配下（市自身 or 区）が何もなければ pref も OFF 判定に進む
-      if (!this._hasAnyUnderCity(pref, city)) {
+      // 区が全部外れたら市をOFF
+      if (!this._hasAnyWard(pref, city)) {
         this._set(false, `${pref}/${city}`);
       }
+
+      // 都道府県配下の全ての市・区がOFFなら府県もOFF
       if (!this._hasAnyUnderPref(pref)) {
-        this._set(false, `${pref}`);
+        this._set(false, pref);
       }
     }
   }
 
-  // 区のON/OFF（親も自動）
-  setWardChecked(pref, city, ward, checked){
-    this._set(checked, `${pref}/${city}/${ward}`);
+  // 都道府県配下に何か残っているか？
+  _hasAnyUnderPref(pref) {
+    const prefix = `${pref}/`;
+    // 都道府県自身 or 子（市／区）が1つでもある場合true
+    return Array.from(this._tempLoc).some(loc => loc === pref || loc.startsWith(prefix));
+  }
 
-    if (checked) {
-      // 市 & 都道府県もON
-      this._set(true, `${pref}/${city}`);
-      this._set(true, `${pref}`);
-    } else {
-      // その市に残りの ward が無ければ 市をOFF（＝市内のチェックが0なら外す）
-      if (!this._hasAnyWardUnderCity(pref, city)) {
-        this._set(false, `${pref}/${city}`);
-      }
-      // 都道府県配下にも何も無ければ 都道府県をOFF
-      if (!this._hasAnyUnderPref(pref)) {
-        this._set(false, `${pref}`);
-      }
-    }
+  // 市内の区が残っているか？
+  _hasAnyWard(pref, city) {
+    const prefix = `${pref}/${city}/`;
+    return Array.from(this._tempLoc).some(loc => loc.startsWith(prefix));
   }
 
   // temp セット操作
   _set(on, loc){
     if (on) this._tempLoc.add(loc);
     else this._tempLoc.delete(loc);
-  }
-
-  // 都道府県配下に一つでも選択があるか（pref 自身、市、区のいずれか）
-  _hasAnyUnderPref(pref){
-    const prefix = `${pref}/`;
-    for (const loc of this._tempLoc) {
-      if (loc === pref || loc.startsWith(prefix)) return true;
-    }
-    return false;
   }
 
   // 市配下に一つでも選択があるか（市 or 区）
