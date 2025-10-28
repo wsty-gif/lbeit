@@ -40,7 +40,7 @@ class SearchForm {
 
     // 画面
     this.el.innerHTML = `
-      <div class="card" style="padding:16px;">
+      <div class="card" style="padding:16px; position:relative; min-height:100vh; box-sizing:border-box; padding-bottom:80px;">
         <div style="display:grid;gap:16px;">
           <div>
             <label class="block text-sm font-semibold mb-1">キーワード検索</label>
@@ -50,11 +50,46 @@ class SearchForm {
           ${this.condRow("loc", "勤務地", "fa-solid fa-location-dot")}
           ${this.condRow("job", "職種", "fa-solid fa-briefcase")}
           ${this.condRow("pref", "こだわり条件", "fa-solid fa-star")}
+        </div>
 
-          <button id="btn-search" class="btn btn-primary">この条件で検索する</button>
+        <!-- ✅ フッター（常時固定） -->
+        <div id="search-footer" style="
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+          background: #fff;
+          border-top: 1px solid #ddd;
+          padding: 10px 16px;
+          z-index: 1000;
+          box-sizing: border-box;
+        ">
+          <button id="btn-clear" style="
+            flex: 1;
+            border: 1px solid #333;
+            background: #fff;
+            color: #111;
+            border-radius: 8px;
+            padding: 10px;
+            font-weight: 600;
+          ">すべてクリア</button>
+
+          <button id="btn-search" style="
+            flex: 2;
+            border: none;
+            background: #e53935;
+            color: #fff;
+            border-radius: 8px;
+            padding: 10px;
+            font-weight: 700;
+          ">この条件で検索する</button>
         </div>
       </div>
     `;
+
 
     // 入力イベント
     this.el.querySelector("#sf-key").addEventListener("input", e => {
@@ -671,68 +706,134 @@ updateConditionLabels() {
     };
     document.querySelector("#job-key").addEventListener("input", filter);
   }
+/* ------------------------------
+ * こだわり条件ページ（丸枠スタイル付き）
+ * ------------------------------ */
+/* ------------------------------
+ * こだわり条件ページ（1行ごと＋チェックボックス入り）
+ * ------------------------------ */
+buildPrefPage() {
+  const prefsData = {
+    "人気条件": [
+      "未経験歓迎", "土日祝休み", "完全週休２日制", "年間休日１２０日以上", "在宅勤務（リモートワーク）OK", "転勤なし", "服装自由", "年齢不問", "学歴不問", "語学力を活かせる"
+    ],
+    "求める人材": [
+      "未経験者歓迎", "経験者歓迎", "管理職・マネジメント経験歓迎", "年齢不問", "大卒以上", "学歴不問", "第二新卒歓迎", "既卒歓迎", "フリーター歓迎", "ブランクOK", "子育て世代歓迎", "障がい者歓迎", "転職回数不問", "６０代も応募可", "７０代も応募可"
+    ],
+    "職場環境": [
+      "女性が活躍中", "外国人が活躍中", "中途入社５０％以上", "高定着率", "服装自由", "ひげOK", "髪型・髪色自由", "ネイルOK", "ピアスOK"
+    ],
+    "勤務地・アクセス": [
+      "在宅勤務（リモートワーク）OK", "フルリモート", "転勤なし", "車・バイク通勤OK"
+    ],
+    "勤務時間・休日": [
+      "土日祝休み", "完全週休２日制", "年間休日１２０日以上", "連続休暇取得可能", "残業なし（原則定時退社）", "残業月２０時間以内", "フレックスタイム制", "時短勤務あり"
+    ],
+    "給与": [
+      "固定給２５万円以上", "固定給３５万円以上", "賞与あり", "歩合制あり", "完全歩合制"
+    ],
+    "待遇・福利厚生": [
+      "産休・育休あり", "子育てサポートあり", "介護休暇・介護サポートあり", "交通費支給", "家賃補助・在宅手当あり", "寮・社宅あり", "社食・まかない・食事補助あり", "社員割引あり", "資格取得支援・手当あり", "退職金あり", "定年６５歳以上", "定年後勤務延長・再雇用あり"
+    ],
+    "仕事の特徴": [
+      "語学力を活かせる", "海外勤務・海外出張あり", "出張なし", "ノルマなし", "直行直帰", "副業・WワークOK"
+    ],
+    "募集・選考の特徴": [
+      "急募", "大量募集", "面接１回", "リモート面接OK", "職場見学可"
+    ]
+  };
 
-  /* ------------------------------
-   * こだわり条件ページ
-   * ------------------------------ */
-  buildPrefPage(){
-    const page=document.querySelector("#page-pref .slide-inner");
-    page.innerHTML=`
-      ${this.headerTpl("こだわり条件","back-pref")}
-      <div style="flex:1;overflow:auto;padding:16px;display:grid;grid-template-columns:33% 67%;gap:12px;">
-        <ul id="pref-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
-        <div id="pref-wrap"></div>
+  const page = document.querySelector("#page-pref .slide-inner");
+  page.innerHTML = `
+    ${this.headerTpl("こだわり条件","back-pref")}
+    <div id="pref-main" style="display:grid;grid-template-columns:33% 67%;height:100%;overflow:hidden;">
+      <!-- 左メニュー -->
+      <ul id="pref-menu" style="list-style:none;margin:0;padding:0;overflow-y:auto;border-right:1px solid #ddd;background:#f9f9f9;">
+        ${Object.keys(prefsData).map((c, i) => `
+          <li>
+            <button class="side-btn ${i===0 ? "active" : ""}" data-cat="${c}"
+              style="display:block;width:100%;padding:10px 8px;text-align:left;border:none;background:${i===0?"#fff":"#f9f9f9"};cursor:pointer;">
+              ${c}
+            </button>
+          </li>`).join("")}
+      </ul>
+
+      <!-- 右側リスト -->
+      <div id="pref-content" style="overflow-y:auto;padding:10px 16px;scroll-behavior:smooth;">
+        ${Object.entries(prefsData).map(([cat, opts]) => `
+          <div class="pref-section" id="sec-${cat}" style="margin-bottom:24px;">
+            <h3 style="font-size:16px;font-weight:600;margin-bottom:8px;border-bottom:1px solid #ddd;padding-bottom:4px;">${cat}</h3>
+            ${opts.map(o => `
+              <label class="pref-option">
+                <input type="checkbox" class="pref-chk" value="${o}">
+                <span>${o}</span>
+              </label>
+            `).join("")}
+          </div>`).join("")}
       </div>
-      <div class="footer-buttons" style="position:sticky;bottom:0;left:0;right:0;padding:10px 12px;background:#fff;border-top:1px solid #eee;display:flex;gap:8px;">
-        <button class="btn-clear" id="clear-pref" style="flex:1;min-width:88px;border:1px solid #222;background:#fff;color:#111;border-radius:8px;padding:10px;font-weight:600;">クリア</button>
-        <button class="btn-apply" id="apply-pref" style="flex:5;border:none;background:#e53935;color:#fff;border-radius:8px;padding:10px;font-weight:700;">内容を反映する</button>
-      </div>`;
+    </div>
 
-    document.getElementById("back-pref").onclick=()=>this.closeSlide("pref");
+    <div class="footer-buttons" style="position:sticky;bottom:0;left:0;right:0;padding:10px 12px;background:#fff;border-top:1px solid #eee;display:flex;gap:8px;">
+      <button id="clear-pref" class="btn-clear" style="flex:1;border:1px solid #222;background:#fff;color:#111;border-radius:8px;padding:10px;font-weight:600;">クリア</button>
+      <button id="apply-pref" class="btn-apply" style="flex:5;border:none;background:#e53935;color:#fff;border-radius:8px;padding:10px;font-weight:700;">内容を反映する</button>
+    </div>
+  `;
 
-    const menu=page.querySelector("#pref-menu"),wrap=page.querySelector("#pref-wrap");
-    const cats=Object.keys(this.ds.preferences);
+  // 戻るボタン
+  document.getElementById("back-pref").onclick = () => this.closeSlide("pref");
 
-    menu.innerHTML=cats.map((c,i)=>`
-      <li>
-        <button class="side-btn ${i===0?"active":""}" data-cat="${c}"
-          style="width:100%;text-align:left;padding:10px;background:${i===0?"#eaeaea":"#fafafa"};border:none;">
-          ${c}
-        </button>
-      </li>`).join("");
+  // 左メニュークリック → 対応セクションまでスクロール
+  const content = page.querySelector("#pref-content");
+  page.querySelectorAll("#pref-menu .side-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const cat = btn.getAttribute("data-cat");
+      const target = content.querySelector(`#sec-${cat}`);
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
 
-    const renderCat=(cat)=>{
-      const opts=this.ds.preferences[cat]||[];
-      wrap.innerHTML=opts.map(o=>`
-        <label class="opt" style="display:block;padding:6px 4px;font-size:14px;">
-          <input class="checkbox pref-chk" type="checkbox" value="${o}"> ${o}
-        </label>`).join("");
-      // 状態同期
-      wrap.querySelectorAll(".pref-chk").forEach(cb=>{
-        cb.checked = this.state.prefs.includes(cb.value);
-      });
-    };
+  // スクロール監視 → 表示中カテゴリの背景ハイライト
+  const sections = content.querySelectorAll(".pref-section");
+  const menuBtns = page.querySelectorAll("#pref-menu .side-btn");
+  content.addEventListener("scroll", () => {
+    let current = "";
+    sections.forEach(sec => {
+      const rect = sec.getBoundingClientRect();
+      if (rect.top < window.innerHeight * 0.3) current = sec.id.replace("sec-", "");
+    });
+    menuBtns.forEach(btn => {
+      btn.style.background = (btn.getAttribute("data-cat") === current) ? "#fff" : "#f9f9f9";
+    });
+  });
 
-    menu.querySelectorAll(".side-btn").forEach(b=>b.addEventListener("click",()=>{
-      menu.querySelectorAll(".side-btn").forEach(a=>{a.classList.remove("active");a.style.background="#fafafa";});
-      b.classList.add("active");b.style.background="#eaeaea";
-      renderCat(b.getAttribute("data-cat"));
-    }));
+  // 状態同期（チェック反映）
+  content.querySelectorAll(".pref-chk").forEach(cb => {
+    cb.checked = this.state.prefs.includes(cb.value);
+    cb.addEventListener("change", e => {
+      const val = e.target.value;
+      if (e.target.checked) {
+        if (!this.state.prefs.includes(val)) this.state.prefs.push(val);
+      } else {
+        this.state.prefs = this.state.prefs.filter(v => v !== val);
+      }
+    });
+  });
 
-    renderCat(cats[0]);
+  // クリア・反映
+  document.getElementById("clear-pref").onclick = () => {
+    this.state.prefs = [];
+    content.querySelectorAll(".pref-chk").forEach(cb => cb.checked = false);
+    this.updateConditionLabels();
+  };
 
-    document.getElementById("clear-pref").onclick=()=>{
-      this.state.prefs = [];
-      document.querySelectorAll("#page-pref .pref-chk").forEach(cb=>cb.checked=false);
-      this.updateConditionLabels();
-    };
-    document.getElementById("apply-pref").onclick=()=>{
-      const checked=Array.from(document.querySelectorAll("#page-pref .pref-chk:checked")).map(c=>c.value);
-      this.state.prefs=checked;
-      this.updateConditionLabels();
-      this.closeSlide("pref");
-    };
-  }
+  document.getElementById("apply-pref").onclick = () => {
+    this.updateConditionLabels();
+    this.closeSlide("pref");
+  };
+}
+
+
+
 
   /* ------------------------------
    * 検索実行

@@ -950,3 +950,43 @@ label.opt {
 .footer-buttons .btn-clear:hover {
   background: #f8f8f8;
 }
+
+/* ------------------------------
+   ✅ こだわり条件：丸枠タグスタイル
+------------------------------ */
+.pref-option:hover {
+  background-color: #f3f4f6;
+}
+
+.pref-option.active {
+  background-color: #fee2e2; /* 薄い赤背景 */
+  border-color: #ef4444;
+  color: #b91c1c;
+  font-weight: 600;
+}
+/* こだわり条件：1行1項目＆丸枠 */
+.pref-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background-color: #fff;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.pref-option input[type="checkbox"] {
+  accent-color: #e53935;
+  transform: scale(1.1);
+}
+
+.pref-option:hover {
+  background-color: #f9fafb;
+}
+
+.pref-option input[type="checkbox"]:checked + span {
+  color: #b91c1c;
+  font-weight: 600;
+}
