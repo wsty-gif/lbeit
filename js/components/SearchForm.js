@@ -97,7 +97,6 @@ class SearchForm {
   }
 
   updateConditionLabels() {
-    // テキストを一行で省略表示
     const fitOneLine = (el, text) => {
       if (!el) return;
       el.textContent = text;
@@ -108,23 +107,14 @@ class SearchForm {
       el.style.maxWidth = "100%";
     };
 
-    // 勤務地: 「最下層（区・市など）」のみを表示
+    // ✅ 最下層（区・市など）だけを抽出
     const formatLocations = (locations) => {
       if (!locations || locations.length === 0) return "未設定";
-
-      // 一番下の階層だけ抽出（京都府/京都市/北区 → 北区）
-      const bottoms = locations.map(loc => {
-        const parts = loc.split("/");
-        return parts[parts.length - 1];
-      });
-
-      // 重複を除去（Setで一意化）
-      const unique = [...new Set(bottoms)];
-
+      const lowest = locations.map(loc => loc.split("/").pop());
+      const unique = [...new Set(lowest)];
       return unique.join("、");
     };
 
-    // 通常リスト（職種やこだわり）
     const formatList = (arr) => (arr && arr.length ? arr.join("、") : "未設定");
 
     fitOneLine(this.el.querySelector("#val-loc"),  formatLocations(this.state.locations));
@@ -556,27 +546,31 @@ class SearchForm {
     return Array.from(this._tempLoc).some(loc => loc.startsWith(prefix));
   }
 
-  /* ------------------------------
-   * 職種ページ
-   * ------------------------------ */
   buildJobPage(){
     const page=document.querySelector("#page-job .slide-inner");
     page.innerHTML=`
       ${this.headerTpl("職種","back-job")}
       <div style="flex:1;overflow:auto;padding:16px;">
-        <input id="job-key" class="input" placeholder="職種をフリーワードで探す" style="margin-bottom:10px;width:100%;">
-        <div id="job-list" style="display:flex;flex-direction:column;gap:8px;">
-          ${this.ds.jobCategories.map(j=>`<label class="opt" style="display:block;padding:4px 0;font-size:14px;"><input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}</label>`).join("")}
+        <div style="width:95%;margin:0 auto 10px;display:flex;align-items:center;background:#f5f5f5;border-radius:25px;padding:6px 12px;">
+          <i class="fa fa-search text-gray-500 mr-2"></i>
+          <input id="job-key" placeholder="職種をフリーワードで探す" style="background:none;border:none;outline:none;width:100%;color:#333;font-size:1rem;caret-color:#555;"/>
+        </div>
+        <div id="job-list" style="display:flex;flex-direction:column;gap:0;">
+          ${this.ds.jobCategories.map(j=>`
+            <div style="border-bottom:1px solid #e5e7eb;">
+              <label class="opt" style="display:block;padding:10px 0;font-size:16px;">
+                <input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}
+              </label>
+            </div>`).join("")}
         </div>
       </div>
       <div class="footer-buttons" style="position:sticky;bottom:0;left:0;right:0;padding:10px 12px;background:#fff;border-top:1px solid #eee;display:flex;gap:8px;">
-        <button class="btn-clear" id="clear-job" style="flex:1;min-width:88px;border:1px solid #222;background:#fff;color:#111;border-radius:8px;padding:10px;font-weight:600;">クリア</button>
+        <button class="btn-clear" id="clear-job" style="flex:1;border:1px solid #222;background:#fff;color:#111;border-radius:8px;padding:10px;font-weight:600;">クリア</button>
         <button class="btn-apply" id="apply-job" style="flex:5;border:none;background:#e53935;color:#fff;border-radius:8px;padding:10px;font-weight:700;">内容を反映する</button>
       </div>`;
 
     document.getElementById("back-job").onclick=()=>this.closeSlide("job");
 
-    // クリア / 適用
     document.getElementById("clear-job").onclick=()=>{
       this.state.jobs = [];
       document.querySelectorAll('#page-job .job-chk').forEach(cb=>cb.checked=false);
@@ -589,14 +583,15 @@ class SearchForm {
       this.closeSlide("job");
     };
 
-    // フィルタ
     const filter = ()=>{
       const q = (document.querySelector("#job-key").value||"").trim();
       const items = this.ds.jobCategories.filter(j=> j.includes(q));
       document.getElementById("job-list").innerHTML = items.map(j=>`
-        <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
-          <input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}
-        </label>`).join("");
+        <div style="border-bottom:1px solid #e5e7eb;">
+          <label class="opt" style="display:block;padding:10px 0;font-size:16px;">
+            <input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}
+          </label>
+        </div>`).join("");
     };
     document.querySelector("#job-key").addEventListener("input", filter);
   }
