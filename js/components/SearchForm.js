@@ -1,44 +1,43 @@
-// js/components/SearchForm.js
 class SearchForm {
   constructor(container, onSearch) {
     this.el = container;
     this.onSearch = onSearch;
-
-    // 検索条件（確定値）
+    // 画面状態
     this.state = {
       keyword: "",
-      locations: [],
+      locations: [], // ["京都府","京都府/京都市","京都府/京都市/伏見区"] のように格納
       jobs: [],
       prefs: []
     };
+    // 選択ページ（スライド表示）用の一時バッファ
+    this.tmp = { loc: new Set(), job: new Set(), pref: new Set() };
 
-    // 勤務地ページの一時選択（適用前）
-    this._tempLoc = new Set();
+    // 地域→都道府県（最低限：北海道/東北を分離）
+    this.REGION_PREFS = {
+      "北海道": ["北海道"],
+      "東北": ["青森県","岩手県","宮城県","秋田県","山形県","福島県"],
+      "関東": ["茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県"],
+      "中部": ["新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県"],
+      "近畿": ["三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県"],
+      "中国": ["鳥取県","島根県","岡山県","広島県","山口県"],
+      "四国": ["徳島県","香川県","愛媛県","高知県"],
+      "九州・沖縄": ["福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"]
+    };
+
+    // 区データ（必要最低限）
+    this.WARD_DATA = {
+      "京都市": ["北区","上京区","左京区","中京区","東山区","下京区","南区","右京区","伏見区","山科区","西京区"],
+      "大阪市": ["都島区","福島区","此花区","西区","港区","大正区","天王寺区","浪速区","西淀川区","東淀川区","東成区","生野区","旭区","城東区","阿倍野区","住吉区","東住吉区","西成区","淀川区","鶴見区","住之江区","平野区","北区","中央区"],
+      "神戸市": ["東灘区","灘区","兵庫区","長田区","須磨区","垂水区","北区","中央区","西区"]
+    };
 
     this.render();
   }
 
-  /* ------------------------------
-   * 初期描画
-   * ------------------------------ */
-  async render() {
-    // DataService 読み込み（失敗時は仮データで続行）
-    try {
-      this.ds = await DataService.distincts();
-    } catch (err) {
-      console.warn("⚠️ DataService 読み込み失敗。仮データで続行:", err);
-      this.ds = {
-        REGION_PREFS: {
-          北海道: ["北海道"],
-          東北: ["青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県"],
-          関東: ["東京都", "神奈川県", "千葉県", "埼玉県", "茨城県", "栃木県", "群馬県"]
-        },
-        jobCategories: ["カフェスタッフ", "接客", "倉庫", "事務"],
-        preferences: { 人気条件: ["未経験OK", "土日祝休み"] }
-      };
-    }
-
-    // 画面
+  /* =========================
+   * 初期画面（2行固定UI）
+   * ========================= */
+  render() {
     this.el.innerHTML = `
       <div class="card" style="padding:16px;">
         <div style="display:grid;gap:16px;">
@@ -54,460 +53,347 @@ class SearchForm {
           <button id="btn-search" class="btn btn-primary">この条件で検索する</button>
         </div>
       </div>
+
+      ${this.pageTpl("loc","勤務地設定")}
+      ${this.pageTpl("job","職種設定")}
+      ${this.pageTpl("pref","こだわり条件設定")}
     `;
 
-    // 入力イベント
+    // 値の復元
+    this.el.querySelector("#sf-key").value = this.state.keyword || "";
+
+    // イベント
     this.el.querySelector("#sf-key").addEventListener("input", e => {
       this.state.keyword = e.target.value.trim();
     });
-
-    // 条件ページ遷移
-    this.el.querySelector("#open-loc").addEventListener("click", () => this.openSlide("loc"));
-    this.el.querySelector("#open-job").addEventListener("click", () => this.openSlide("job"));
-    this.el.querySelector("#open-pref").addEventListener("click", () => this.openSlide("pref"));
-
-    // 検索実行
     this.el.querySelector("#btn-search").addEventListener("click", () => this.applySearch());
 
-    // スライドページのコンテナ
-    this.ensureSlideContainer();
+    // 行クリック（詳細ページをスライド表示）
+    this.el.querySelector("#open-loc").addEventListener("click", () => this.openPage("loc"));
+    this.el.querySelector("#open-job").addEventListener("click", () => this.openPage("job"));
+    this.el.querySelector("#open-pref").addEventListener("click", () => this.openPage("pref"));
 
-    // ページ構築
-    this.buildLocationPage();
+    // 条件クリア（タイトル行の右端）
+    this.el.querySelectorAll(".clear-btn").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const key = btn.dataset.clear;
+        if (key === "loc") this.state.locations = [];
+        if (key === "job") this.state.jobs = [];
+        if (key === "pref") this.state.prefs = [];
+        this.render(); // 表示更新
+      });
+    });
+
+    // 詳細ページ内容の構築
+    this.buildLocPage();
     this.buildJobPage();
     this.buildPrefPage();
-
-    // ラベル更新
-    this.updateConditionLabels();
   }
 
-  /* ------------------------------
-   * 共通UI片
-   * ------------------------------ */
+  // 2行固定レイアウト（未設定 or 設定済み）
   condRow(key, label, icon) {
-    const value = this.state[key + "ations"] || [];
-    const hasValue = value.length > 0;
-    const valText = hasValue ? value.join("、") : "未設定";
+    const values = (key === "loc")
+      ? this.summarizeLocations(this.state.locations)
+      : (key === "job" ? this.state.jobs : this.state.prefs);
+
+    const hasValue = (values && values.length > 0);
+    const contentText = hasValue ? values.join("、") : "未設定";
 
     return `
       <div class="cond-row" id="open-${key}" style="border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;">
-        <!-- タイトル行 -->
+        <!-- 1行目：タイトル + 右端ボタン -->
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div style="display:flex;align-items:center;gap:8px;">
             <i class="${icon}" style="color:#555;font-size:1.1rem;"></i>
             <span style="font-weight:600;">${label}</span>
           </div>
-          ${hasValue ? `<span class="clear-btn" data-clear="${key}" style="color:#007bff;font-size:0.9rem;">条件をクリア</span>` : ""}
+          ${
+            hasValue
+              ? `<span class="clear-btn" data-clear="${key}" style="color:#1d4ed8;font-size:0.9rem;">条件をクリア</span>`
+              : ``
+          }
         </div>
-
-        <!-- 内容行（未設定 or 値） -->
+        <!-- 2行目：内容（未設定 or 値） 右端に＞（未設定時のみ） -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-left:28px;margin-top:4px;">
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;font-size:0.95rem;">
-            ${valText}
+            ${contentText}
           </span>
-          ${!hasValue ? `<span style="color:#999;font-size:1.2rem;">＞</span>` : ""}
+          ${
+            hasValue
+              ? ``
+              : `<span style="color:#999;font-size:1.2rem;">＞</span>`
+          }
         </div>
-      </div>`;
-  }
-
-  updateConditionLabels() {
-    const fitOneLine = (el, text) => {
-      if (!el) return;
-      el.textContent = text;
-      el.style.whiteSpace = "nowrap";
-      el.style.overflow = "hidden";
-      el.style.textOverflow = "ellipsis";
-      el.style.display = "block";
-      el.style.maxWidth = "100%";
-    };
-
-    // ✅ 最下層（区・市など）だけを抽出
-    const formatLocations = (locations) => {
-      if (!locations || locations.length === 0) return "未設定";
-      const lowest = locations.map(loc => loc.split("/").pop());
-      const unique = [...new Set(lowest)];
-      return unique.join("、");
-    };
-
-    const formatList = (arr) => (arr && arr.length ? arr.join("、") : "未設定");
-
-    fitOneLine(this.el.querySelector("#val-loc"),  formatLocations(this.state.locations));
-    fitOneLine(this.el.querySelector("#val-job"),  formatList(this.state.jobs));
-    fitOneLine(this.el.querySelector("#val-pref"), formatList(this.state.prefs));
-  }
-
-  ensureSlideContainer() {
-    if (document.getElementById("slide-container")) return;
-    const wrap = document.createElement("div");
-    wrap.id = "slide-container";
-    Object.assign(wrap.style, {
-      position:"fixed", inset:"0", overflow:"hidden", zIndex:"2000", pointerEvents:"none"
-    });
-
-    ["loc","job","pref"].forEach(id=>{
-      const p=document.createElement("div");
-      p.id=`page-${id}`;
-      p.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;background:#fff;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;visibility:hidden;";
-      const inner=document.createElement("div");
-      inner.className="slide-inner";
-      inner.style.cssText="flex:1;display:flex;flex-direction:column;height:100%;";
-      p.appendChild(inner);
-      wrap.appendChild(p);
-    });
-    document.body.appendChild(wrap);
-  }
-
-  openSlide(key){
-    if (key === "loc") {
-      // 勤務地は一時選択を現状で初期化
-      this._tempLoc = new Set(this.state.locations);
-    }
-    const c=document.getElementById("slide-container");
-    if(!c) return;
-    c.style.pointerEvents="auto";
-    const p=document.getElementById(`page-${key}`);
-    if(!p) return;
-    p.style.visibility="visible";
-    requestAnimationFrame(()=>{p.style.transform="translateX(0)";});
-  }
-
-  closeSlide(key){
-    const c=document.getElementById("slide-container");
-    const p=document.getElementById(`page-${key}`);
-    if(!p) return;
-    p.style.transform="translateX(100%)";
-    setTimeout(()=>{p.style.visibility="hidden"; if(c) c.style.pointerEvents="none";}, 350);
-  }
-
-  headerTpl(title, backId){
-    return `
-      <div style="display:flex;align-items:center;gap:10px;padding:14px;border-bottom:1px solid #eee;background:#fafafa;">
-        <button id="${backId}" style="background:none;border:none;font-size:18px;cursor:pointer;">＜</button>
-        <h3 style="font-size:18px;font-weight:600;margin:0;">${title}</h3>
-      </div>`;
-  }
-
-  /* ------------------------------
-   * REGION_PREFS 正規化（「北海道・東北」を分離）
-   * ------------------------------ */
-  normalizeRegions(REGION_PREFS){
-    const out = {};
-    Object.entries(REGION_PREFS || {}).forEach(([region, prefs])=>{
-      if (region.includes("北海道") && region.includes("東北")) {
-        const setTohoku = new Set(["青森県","岩手県","宮城県","秋田県","山形県","福島県"]);
-        const hokkaido = prefs.filter(p => p === "北海道");
-        const tohoku   = prefs.filter(p => setTohoku.has(p));
-        if (hokkaido.length) out["北海道"] = (out["北海道"] || []).concat(hokkaido);
-        if (tohoku.length)   out["東北"]   = (out["東北"]   || []).concat(tohoku);
-      } else {
-        out[region] = (out[region] || []).concat(prefs);
-      }
-    });
-    return out;
-  }
-
-  /* ------------------------------
-   * データアクセス（prefCities.js）
-   * ------------------------------ */
-  getPrefData(pref){
-    // 返り値: { type:"object"|"array", cities:[...], wardsMap:{} }
-    const raw = (window.PREF_CITY_DATA || {})[pref];
-    if (!raw) return { type:"none", cities:[], wardsMap:{} };
-
-    if (Array.isArray(raw)) {
-      // ["久御山町", "宇治市", ...]
-      return { type:"array", cities: raw, wardsMap: {} };
-    } else if (typeof raw === "object") {
-      // { "京都市": ["北区",...], "久御山町": [] }
-      const cities = Object.keys(raw);
-      return { type:"object", cities, wardsMap: raw };
-    }
-    return { type:"none", cities:[], wardsMap:{} };
-  }
-
-  getWards(pref, city){
-    const raw = (window.PREF_CITY_DATA || {})[pref];
-    if (!raw) return [];
-    if (Array.isArray(raw)) return []; // 配列型は市のみ
-    const wards = raw[city];
-    return Array.isArray(wards) ? wards : [];
-  }
-
-  /* ------------------------------
-   * 勤務地ページ
-   * ------------------------------ */
-  buildLocationPage(){
-    const page=document.querySelector("#page-loc .slide-inner");
-    page.innerHTML=`
-      ${this.headerTpl("勤務地","back-loc")}
-      <div id="loc-main" style="flex:1;overflow:auto;padding:16px;display:grid;grid-template-columns:33% 67%;gap:12px;">
-        <ul id="region-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
-        <div id="pref-wrap"></div>
       </div>
-      <div class="footer-buttons" style="position:sticky;bottom:0;left:0;right:0;padding:10px 12px;background:#fff;border-top:1px solid #eee;display:flex;gap:8px;">
-        <button class="btn-clear" id="clear-loc" style="flex:1;min-width:88px;border:1px solid #222;background:#fff;color:#111;border-radius:8px;padding:10px;font-weight:600;">クリア</button>
-        <button class="btn-apply" id="apply-loc" style="flex:5;border:none;background:#e53935;color:#fff;border-radius:8px;padding:10px;font-weight:700;">内容を反映する</button>
-      </div>`;
+    `;
+  }
 
-    document.getElementById("back-loc").onclick=()=>this.closeSlide("loc");
-
-    const regionMenu=page.querySelector("#region-menu");
-    const prefWrap=page.querySelector("#pref-wrap");
-
-    // 地域データを正規化（「北海道・東北」を分離）
-    const REGION_PREFS = this.normalizeRegions(this.ds.REGION_PREFS);
-    const regions = Object.keys(REGION_PREFS);
-
-    // 左のエリアメニュー（赤丸で選択あり表示・折り返し防止）
-    regionMenu.innerHTML=regions.map((r,i)=>`
-      <li>
-        <button class="side-btn ${i===0?"active":""}" data-region="${r}"
-          style="width:100%;text-align:left;padding:10px;font-size:15px;background:${i===0?"#eaeaea":"#fafafa"};border:none;display:inline-flex;align-items:center;gap:6px;">
-          <span>${r}</span>
-          <span class="region-dot" data-region-dot="${r}" style="display:none;width:8px;height:8px;background:#e53935;border-radius:50%;"></span>
-        </button>
-      </li>`).join("");
-
-    // 都道府県リスト描画
-    const renderPrefs=(region)=>{
-      const prefs=REGION_PREFS[region]||[];
-      prefWrap.innerHTML=prefs.map(pref=>`
-        <div style="border-bottom:1px solid #ddd;padding:8px 0;">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-            <label class="opt" style="font-size:16px;display:flex;align-items:center;gap:6px;margin-right:auto;">
-              <input type="checkbox" data-loc="${pref}">
-              ${pref}
-            </label>
-            <button data-pref="${pref}" class="toggle" style="font-size:18px;border:none;background:none;cursor:pointer;">＋</button>
+  /* =========================
+   * スライドページ（共通）
+   * ========================= */
+  pageTpl(key, title) {
+    return `
+      <div id="page-${key}" style="
+        position:fixed;inset:0;background:#fff;z-index:60;transform:translateX(100%);
+        transition:transform .25s ease;
+        display:flex;flex-direction:column;
+      ">
+        <div style="padding:12px 14px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px;">
+          <button data-back-${key} style="border:1px solid #ddd;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;">戻る</button>
+          <h3 style="font-weight:700;">${title}</h3>
+        </div>
+        <div id="${key}-content" style="flex:1;min-height:0;overflow:auto;"></div>
+        <div style="position:sticky;bottom:0;background:#fff;border-top:1px solid #eee;padding:10px;">
+          <div style="display:flex;gap:10px;">
+            <button data-clear-${key} style="flex:0 0 28%;border:1px solid #222;background:#fff;color:#111;border-radius:10px;padding:12px 10px;font-weight:700;cursor:pointer;">クリア</button>
+            <button data-apply-${key} style="flex:1;background:#ef4444;color:#fff;border:none;border-radius:10px;padding:12px 10px;font-weight:700;cursor:pointer;">内容を反映する</button>
           </div>
-          <div data-city-list="${pref}" style="display:none;padding-left:16px;"></div>
-        </div>`).join("");
+        </div>
+      </div>
+    `;
+  }
 
-      // 都道府県チェック初期同期
-      prefWrap.querySelectorAll('input[type="checkbox"][data-loc]').forEach(cb=>{
-        const loc = cb.getAttribute("data-loc");
-        cb.checked = this._tempLoc.has(loc);
-      });
+  openPage(key) {
+    // 一時バッファ初期化
+    if (key === "loc") this.tmp.loc = new Set(this.state.locations);
+    if (key === "job") this.tmp.job = new Set(this.state.jobs);
+    if (key === "pref") this.tmp.pref = new Set(this.state.prefs);
 
-      // 展開ボタン
-      prefWrap.querySelectorAll(".toggle").forEach(btn=>{
-        btn.addEventListener("click",()=>{
-          const pref=btn.getAttribute("data-pref");
-          const list=prefWrap.querySelector(`[data-city-list="${pref}"]`);
-          const visible=list.style.display==="block";
-          if (visible) {
-            list.style.display="none";
-            btn.textContent="＋";
-            return;
-          }
-          // 初回ロード or 再表示
-          list.style.display="block";
-          btn.textContent="－";
-          if (!list.dataset.loaded) {
-            this.renderCities(pref, list);
-            list.dataset.loaded = "1";
-          } else {
-            this.syncCheckboxesIn(list);
-          }
+    const page = document.getElementById(`page-${key}`);
+    page.style.transform = "translateX(0%)";
+
+    // 戻る
+    page.querySelector(`[data-back-${key}]`).onclick = () => {
+      page.style.transform = "translateX(100%)";
+    };
+
+    // クリア
+    page.querySelector(`[data-clear-${key}]`).onclick = () => {
+      if (key === "loc") this.tmp.loc.clear();
+      if (key === "job") this.tmp.job.clear();
+      if (key === "pref") this.tmp.pref.clear();
+      // 見た目更新
+      if (key === "loc") this.refreshLocChecks();
+      if (key === "job") this.refreshJobChecks();
+      if (key === "pref") this.refreshPrefChecks();
+    };
+
+    // 反映
+    page.querySelector(`[data-apply-${key}]`).onclick = () => {
+      if (key === "loc") this.state.locations = Array.from(this.tmp.loc);
+      if (key === "job") this.state.jobs = Array.from(this.tmp.job);
+      if (key === "pref") this.state.prefs = Array.from(this.tmp.pref);
+      this.render(); // 初期画面へ反映
+      page.style.transform = "translateX(100%)";
+    };
+  }
+
+  /* =========================
+   * 勤務地ページ
+   * ========================= */
+  buildLocPage() {
+    const cont = document.getElementById("loc-content");
+    cont.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;min-height:100%;height:100%;">
+        <!-- 左：地域 -->
+        <div style="border-right:1px solid #eee;">
+          <ul id="region-menu" style="list-style:none;margin:0;padding:6px;">
+            ${Object.keys(this.REGION_PREFS).map((r,i)=>`
+              <li>
+                <button class="region-btn ${i===0?"active":""}" data-region="${r}" style="
+                  width:100%;text-align:left;border:none;background:#fff;cursor:pointer;
+                  padding:10px 8px;border-radius:8px;margin-bottom:6px;font-weight:${i===0?"700":"600"};
+                  ${i===0?"background:#f8fafc;":""}
+                ">${r}<span class="red-dot" data-dot-region="${r}" style="display:none;margin-left:6px;background:#dc2626;width:8px;height:8px;border-radius:9999px;vertical-align:middle;"></span></button>
+              </li>
+            `).join("")}
+          </ul>
+        </div>
+        <!-- 中：都道府県 -->
+        <div style="border-right:1px solid #eee;overflow:auto;" id="pref-pane"></div>
+        <!-- 右：市・区 -->
+        <div style="overflow:auto;padding:8px;" id="city-pane">
+          <div style="color:#888;">左の都道府県を選ぶと市区町村が表示されます</div>
+        </div>
+      </div>
+    `;
+
+    const prefPane = cont.querySelector("#pref-pane");
+    const cityPane = cont.querySelector("#city-pane");
+    const regions = Object.keys(this.REGION_PREFS);
+
+    const renderPrefs = (region) => {
+      const prefs = this.REGION_PREFS[region] || [];
+      prefPane.innerHTML = prefs.map(pref => {
+        const checked = this._isPrefAllSelected(pref);
+        return `
+          <div style="padding:10px 10px;border-bottom:1px solid #f1f5f9;">
+            <label style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" class="pref-chk" data-pref="${pref}" ${checked?"checked":""} style="accent-color:#dc2626;width:16px;height:16px;">
+              <span style="font-weight:700;font-size:15px;">${pref}</span>
+              <button class="pref-toggle" data-pref="${pref}" style="margin-left:auto;border:1px solid #ddd;background:#fff;border-radius:6px;padding:4px 8px;cursor:pointer;">＋</button>
+            </label>
+          </div>
+        `;
+      }).join("");
+
+      // 県チェック→配下一括選択
+      prefPane.querySelectorAll(".pref-chk").forEach(ch => {
+        ch.addEventListener("change", (e) => {
+          const pref = e.target.getAttribute("data-pref");
+          const on = e.target.checked;
+          this.setPrefChecked(pref, on);
+          this.refreshLocChecks();
+          this.updateRegionDot();
         });
       });
 
-      // 都道府県 change（配下一括 ON/OFF）
-      prefWrap.addEventListener("change", (e)=>{
-        if (!e.target.matches('input[type="checkbox"][data-loc]')) return;
-        const loc = e.target.getAttribute("data-loc");
-        const checked = e.target.checked;
-        const parts = loc.split("/");
-        if (parts.length === 1) {
-          // prefecture
-          this.setPrefChecked(loc, checked);
-          this.syncCheckboxesIn(prefWrap);
-          this.updateRegionDots(REGION_PREFS);
-        }
+      // 県の「＋」→ 市表示
+      prefPane.querySelectorAll(".pref-toggle").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const pref = btn.getAttribute("data-pref");
+          renderCities(pref);
+        });
       });
-
-      // 初期同期
-      this.syncCheckboxesIn(prefWrap);
-      this.updateRegionDots(REGION_PREFS);
     };
 
-    // 左メニュー切替
-    regionMenu.querySelectorAll(".side-btn").forEach(btn=>{
-      btn.addEventListener("click",()=>{
-        regionMenu.querySelectorAll(".side-btn").forEach(b=>{b.classList.remove("active");b.style.background="#fafafa";});
-        btn.classList.add("active");btn.style.background="#eaeaea";
+    const renderCities = (pref) => {
+      const cities = (window.PREF_CITY_DATA && window.PREF_CITY_DATA[pref]) || [];
+      cityPane.innerHTML = `
+        <div style="padding:8px 8px 0 8px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-weight:700;">${pref}</span>
+          </div>
+          <div>
+            ${cities.map(city => {
+              const wards = this.WARD_DATA[city] || [];
+              const cChecked = this._isCityAllSelected(pref, city, wards);
+              return `
+                <div style="padding:8px 0;border-bottom:1px solid #f3f4f6;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" class="city-chk" data-pref="${pref}" data-city="${city}" ${cChecked?"checked":""} style="accent-color:#dc2626;width:16px;height:16px;">
+                    <span style="font-weight:600;font-size:15px;">${city}</span>
+                    ${wards.length?`<button class="city-toggle" data-pref="${pref}" data-city="${city}" style="margin-left:auto;border:1px solid #ddd;background:#fff;border-radius:6px;padding:2px 6px;cursor:pointer;">＋</button>`:""}
+                  </div>
+                  ${wards.length?`
+                    <div class="ward-box" data-pref="${pref}" data-city="${city}" style="margin-left:24px;margin-top:6px;display:none;">
+                      ${wards.map(w => {
+                        const wChecked = this.tmp.loc.has(`${pref}/${city}/${w}`);
+                        return `
+                          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f7f7f7;">
+                            <input type="checkbox" class="ward-chk" data-pref="${pref}" data-city="${city}" data-ward="${w}" ${wChecked?"checked":""} style="accent-color:#dc2626;width:16px;height:16px;">
+                            <span>${w}</span>
+                          </div>
+                        `;
+                      }).join("")}
+                    </div>
+                  `:""}
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `;
+
+      // 市チェック
+      cityPane.querySelectorAll(".city-chk").forEach(ch => {
+        ch.addEventListener("change", (e) => {
+          const pref = e.target.getAttribute("data-pref");
+          const city = e.target.getAttribute("data-city");
+          const on = e.target.checked;
+          this.setCityChecked(pref, city, on);
+          this.refreshLocChecks();
+          this.updateRegionDot();
+        });
+      });
+
+      // 市の＋ → 区表示切替
+      cityPane.querySelectorAll(".city-toggle").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const pref = btn.getAttribute("data-pref");
+          const city = btn.getAttribute("data-city");
+          const box = cityPane.querySelector(`.ward-box[data-pref="${pref}"][data-city="${city}"]`);
+          const now = box.style.display !== "none";
+          box.style.display = now ? "none" : "block";
+          btn.textContent = now ? "＋" : "－";
+        });
+      });
+
+      // 区チェック
+      cityPane.querySelectorAll(".ward-chk").forEach(ch => {
+        ch.addEventListener("change", (e) => {
+          const pref = e.target.getAttribute("data-pref");
+          const city = e.target.getAttribute("data-city");
+          const ward = e.target.getAttribute("data-ward");
+          const on = e.target.checked;
+          this.setWardChecked(pref, city, ward, on);
+          this.refreshLocChecks();
+          this.updateRegionDot();
+        });
+      });
+    };
+
+    // 地域切替
+    cont.querySelectorAll(".region-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        cont.querySelectorAll(".region-btn").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
         renderPrefs(btn.getAttribute("data-region"));
       });
     });
 
+    // 初期表示
     renderPrefs(regions[0]);
-
-    // クリア / 適用
-    document.getElementById("clear-loc").onclick=()=>{
-      this._tempLoc.clear();
-      // 現在表示中のチェックを全OFF
-      document.querySelectorAll('#page-loc input[type="checkbox"][data-loc]').forEach(cb=>cb.checked=false);
-      this.syncCheckboxesIn(document.getElementById("page-loc"));
-      this.updateRegionDots(REGION_PREFS);
-    };
-
-    document.getElementById("apply-loc").onclick=()=>{
-      this.state.locations = Array.from(this._tempLoc);
-      this.updateConditionLabels();
-      this.closeSlide("loc");
-    };
   }
 
-  // 都道府県配下の市・区を描画
-  renderCities(pref, container){
-    const { type, cities, wardsMap } = this.getPrefData(pref);
-
-    const html = cities.map(city=>{
-      const wards = (type === "object") ? (wardsMap[city] || []) : [];
-      const hasW  = Array.isArray(wards) && wards.length > 0;
-
-      return `
-        <div style="border-bottom:1px solid #eee;padding:6px 0;">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-            <label class="opt" style="font-size:15px;display:flex;align-items:center;gap:6px;margin-right:auto;">
-              <input type="checkbox" data-loc="${pref}/${city}">
-              ${city}
-            </label>
-            ${hasW?`<button data-city="${city}" data-pref="${pref}" class="toggle city-toggle" style="border:none;background:none;font-size:16px;cursor:pointer;">＋</button>`:""}
-          </div>
-          ${hasW?`<div data-ward-list="${pref}/${city}" style="display:none;padding-left:16px;">
-            ${wards.map(w=>`
-              <div style="border-bottom:1px solid #f0f0f0;padding:4px 0;">
-                <label class="opt" style="font-size:14px;display:flex;align-items:center;gap:6px;">
-                  <input type="checkbox" data-loc="${pref}/${city}/${w}">
-                  ${w}
-                </label>
-              </div>
-            `).join("")}
-          </div>`:""}
-        </div>`;
-    }).join("");
-
-    container.innerHTML = html;
-
-    // チェック状態同期
-    this.syncCheckboxesIn(container);
-
-    // 市の展開トグル
-    container.querySelectorAll(".city-toggle").forEach(b=>{
-      b.addEventListener("click", ()=>{
-        const pref = b.getAttribute("data-pref");
-        const city = b.getAttribute("data-city");
-        const wardWrap = container.querySelector(`[data-ward-list="${pref}/${city}"]`);
-        const shown = wardWrap.style.display === "block";
-        wardWrap.style.display = shown ? "none":"block";
-        b.textContent = shown ? "＋":"－";
-        if (!shown) {
-          // 表示されたらチェック同期
-          this.syncCheckboxesIn(wardWrap);
-        }
-      });
+  // 勤務地：都道府県ON/OFF（配下すべて一括）
+  setPrefChecked(pref, on) {
+    if (!window.PREF_CITY_DATA || !window.PREF_CITY_DATA[pref]) {
+      // 市データなしでもprefだけは反映
+      this._set(on, pref);
+      return;
+    }
+    const cities = window.PREF_CITY_DATA[pref];
+    // 県自身
+    this._set(on, pref);
+    // 市
+    cities.forEach(city => {
+      this._set(on, `${pref}/${city}`);
+      const wards = this.WARD_DATA[city] || [];
+      wards.forEach(w => this._set(on, `${pref}/${city}/${w}`));
     });
-
-    // 市・区の change を委譲で拾う
-    container.addEventListener("change", (e)=>{
-      if (!e.target.matches('input[type="checkbox"][data-loc]')) return;
-      const loc = e.target.getAttribute("data-loc");
-      const checked = e.target.checked;
-      const parts = loc.split("/");
-
-      if (parts.length === 3) {
-        // ward
-        this.setWardChecked(parts[0], parts[1], parts[2], checked);
-      } else if (parts.length === 2) {
-        // city
-        this.setCityChecked(parts[0], parts[1], checked);
-      }
-      // 見た目反映
-      this.syncCheckboxesIn(container);
-      this.syncCheckboxesIn(document.getElementById("page-loc"));
-      // REGION_PREFS が必要なので再取得
-      const REGION_PREFS = this.normalizeRegions(this.ds.REGION_PREFS);
-      this.updateRegionDots(REGION_PREFS);
-    });
+    // OFFの時は余計なのを整理（全子要素がないならpref外す）
+    if (!on && !this._hasAnyChildrenUnderPref(pref)) {
+      this._set(false, pref);
+    }
   }
 
-  // 市のON/OFF（区も一括・親も自動）
-  setCityChecked(pref, city, checked) {
-    this._set(checked, `${pref}/${city}`);
-
-    // 区をすべて一括でON/OFF
-    const wards = this.getWards(pref, city) || [];
-    wards.forEach(w => this._set(checked, `${pref}/${city}/${w}`));
-
-    if (checked) {
-      // ONなら親の都道府県もON
+  // 勤務地：市ON/OFF（区も一括・親も自動）
+  setCityChecked(pref, city, on) {
+    this._set(on, `${pref}/${city}`);
+    const wards = this.WARD_DATA[city] || [];
+    wards.forEach(w => this._set(on, `${pref}/${city}/${w}`));
+    if (on) {
+      // ON時は親もON
       this._set(true, pref);
     } else {
-      // 区を含め全てOFFなら市OFF
-      if (!this._hasAnyUnderCity(pref, city)) {
+      // 市配下に何もなければ市OFF（市自体も外す）
+      if (!this._hasAnyWard(pref, city)) {
         this._set(false, `${pref}/${city}`);
       }
-      // 都道府県配下に子（市 or 区）が残っていなければ府県もOFF
+      // 府県配下に子がなければ府県もOFF
       if (!this._hasAnyChildrenUnderPref(pref)) {
         this._set(false, pref);
       }
     }
   }
 
-  /* ------------------------------
-   * チェック状態 同期/装飾
-   * ------------------------------ */
-  syncCheckboxesIn(root){
-    if (!root) return;
-    root.querySelectorAll('input[type="checkbox"][data-loc]').forEach(cb=>{
-      const loc = cb.getAttribute("data-loc");
-      cb.checked = this._tempLoc.has(loc);
-      // 赤いチェック
-      cb.style.accentColor = cb.checked ? "#e53935" : "";
-      // 選択中ラベルの薄赤背景
-      const label = cb.closest("label.opt");
-      if (label) {
-        label.style.background = cb.checked ? "rgba(255,0,0,0.08)" : "transparent";
-        label.style.borderRadius = "6px";
-      }
-    });
-  }
-
-  updateRegionDots(REGION_PREFS){
-    const regions = Object.keys(REGION_PREFS || {});
-    regions.forEach(r=>{
-      const dot = document.querySelector(`[data-region-dot="${r}"]`);
-      if (!dot) return;
-      const prefs = REGION_PREFS[r] || [];
-      const has = Array.from(this._tempLoc).some(loc=>{
-        return prefs.some(pref => loc === pref || loc.startsWith(pref + "/"));
-      });
-      dot.style.display = has ? "inline-block" : "none";
-    });
-  }
-
-  /* ------------------------------
-   * 親子連動ロジック（勤務地）
-   * ------------------------------ */
-
-  // 都道府県の一括 ON/OFF（既存のままでOK）
-  setPrefChecked(pref, checked){
-    this._set(checked, `${pref}`);
-    const { type, cities, wardsMap } = this.getPrefData(pref);
-    cities.forEach(city=>{
-      this._set(checked, `${pref}/${city}`);
-      const wards = (type==="object") ? (wardsMap[city] || []) : [];
-      wards.forEach(w => this._set(checked, `${pref}/${city}/${w}`));
-    });
-  }
-
-  // 区のON/OFF（親も自動）
-  setWardChecked(pref, city, ward, checked) {
-    this._set(checked, `${pref}/${city}/${ward}`);
-
-    if (checked) {
-      // 区をON → 市と府県もON
+  // 勤務地：区ON/OFF（親も自動）
+  setWardChecked(pref, city, ward, on) {
+    this._set(on, `${pref}/${city}/${ward}`);
+    if (on) {
+      // 区をON → 市/府県もON
       this._set(true, `${pref}/${city}`);
       this._set(true, pref);
     } else {
@@ -515,192 +401,252 @@ class SearchForm {
       if (!this._hasAnyWard(pref, city)) {
         this._set(false, `${pref}/${city}`);
       }
-      // 市が全OFFなら府県もOFF
+      // 市も全OFFになったら府県OFF
       if (!this._hasAnyChildrenUnderPref(pref)) {
         this._set(false, pref);
       }
     }
   }
 
-  // 都道府県配下に何か残っているか？
-  _hasAnyUnderPref(pref) {
-    const prefix = `${pref}/`;
-    // 都道府県自身 or 子（市／区）が1つでもある場合true
-    return Array.from(this._tempLoc).some(loc => loc === pref || loc.startsWith(prefix));
+  // 一時集合のON/OFF
+  _set(on, key) {
+    if (!key) return;
+    const S = this.tmp.loc;
+    if (on) S.add(key); else S.delete(key);
   }
 
-  // 市内の区が残っているか？
-  _hasAnyWard(pref, city) {
-    const prefix = `${pref}/${city}/`;
-    return Array.from(this._tempLoc).some(loc => loc.startsWith(prefix));
-  }
-
-  // temp セット操作
-  _set(on, loc){
-    if (on) this._tempLoc.add(loc);
-    else this._tempLoc.delete(loc);
-  }
-
-  // 都道府県配下に「子（市/区）」が残っているか？（親自身は除外）
+  // 県の配下に子があるか
   _hasAnyChildrenUnderPref(pref) {
-    const prefix = `${pref}/`;
-    return Array.from(this._tempLoc).some(loc => loc.startsWith(prefix));
-  }
-
-  // 市配下に何か残っているか（市そのもの or その区）
-  _hasAnyUnderCity(pref, city){
-    const cityKey = `${pref}/${city}`;
-    const prefix = `${cityKey}/`;
-    for (const loc of this._tempLoc) {
-      if (loc === cityKey || loc.startsWith(prefix)) return true;
+    const S = this.tmp.loc;
+    for (const v of S) {
+      if (v === pref) return true;
+      if (v.startsWith(`${pref}/`)) return true;
     }
     return false;
   }
 
-  // 市内の「区」が1つでも残っているか（区のみ）
+  // 市の配下（区）が一つでもあるか
   _hasAnyWard(pref, city) {
+    const S = this.tmp.loc;
     const prefix = `${pref}/${city}/`;
-    return Array.from(this._tempLoc).some(loc => loc.startsWith(prefix));
+    for (const v of S) {
+      if (v.startsWith(prefix)) return true;
+    }
+    // 区を持たない市の場合：市自体が残っていれば true
+    return S.has(`${pref}/${city}`);
   }
 
-  buildJobPage(){
-    const page=document.querySelector("#page-job .slide-inner");
-    page.innerHTML=`
-      ${this.headerTpl("職種","back-job")}
-      <div style="flex:1;overflow:auto;padding:16px;">
-        <div style="width:95%;margin:0 auto 10px;display:flex;align-items:center;background:#f5f5f5;border-radius:25px;padding:6px 12px;">
-          <i class="fa fa-search text-gray-500 mr-2"></i>
-          <input id="job-key" placeholder="職種をフリーワードで探す" style="background:none;border:none;outline:none;width:100%;color:#333;font-size:1rem;caret-color:#555;"/>
-        </div>
-        <div id="job-list" style="display:flex;flex-direction:column;gap:0;">
-          ${this.ds.jobCategories.map(j=>`
-            <div style="border-bottom:1px solid #e5e7eb;">
-              <label class="opt" style="display:block;padding:10px 0;font-size:16px;">
-                <input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}
-              </label>
-            </div>`).join("")}
-        </div>
-      </div>
-      <div class="footer-buttons" style="position:sticky;bottom:0;left:0;right:0;padding:10px 12px;background:#fff;border-top:1px solid #eee;display:flex;gap:8px;">
-        <button class="btn-clear" id="clear-job" style="flex:1;border:1px solid #222;background:#fff;color:#111;border-radius:8px;padding:10px;font-weight:600;">クリア</button>
-        <button class="btn-apply" id="apply-job" style="flex:5;border:none;background:#e53935;color:#fff;border-radius:8px;padding:10px;font-weight:700;">内容を反映する</button>
-      </div>`;
-
-    document.getElementById("back-job").onclick=()=>this.closeSlide("job");
-
-    document.getElementById("clear-job").onclick=()=>{
-      this.state.jobs = [];
-      document.querySelectorAll('#page-job .job-chk').forEach(cb=>cb.checked=false);
-      this.updateConditionLabels();
-    };
-    document.getElementById("apply-job").onclick=()=>{
-      const checked=Array.from(document.querySelectorAll("#page-job .job-chk:checked")).map(c=>c.value);
-      this.state.jobs=checked;
-      this.updateConditionLabels();
-      this.closeSlide("job");
-    };
-
-    const filter = ()=>{
-      const q = (document.querySelector("#job-key").value||"").trim();
-      const items = this.ds.jobCategories.filter(j=> j.includes(q));
-      document.getElementById("job-list").innerHTML = items.map(j=>`
-        <div style="border-bottom:1px solid #e5e7eb;">
-          <label class="opt" style="display:block;padding:10px 0;font-size:16px;">
-            <input class="checkbox job-chk" type="checkbox" value="${j}"> ${j}
-          </label>
-        </div>`).join("");
-    };
-    document.querySelector("#job-key").addEventListener("input", filter);
+  // 府県が全選択か（＝pref自体が選ばれている or 全市区が選択）
+  _isPrefAllSelected(pref) {
+    const S = this.tmp.loc;
+    if (S.has(pref)) return true;
+    const cities = (window.PREF_CITY_DATA && window.PREF_CITY_DATA[pref]) || [];
+    if (!cities.length) return S.has(pref);
+    // 全市が（区含め）ONかのざっくり判定：市キーが各市で最低1件あればONとみなす
+    return cities.every(city => this._isCityAllSelected(pref, city, this.WARD_DATA[city] || []));
   }
 
-  /* ------------------------------
-   * こだわり条件ページ
-   * ------------------------------ */
-  buildPrefPage(){
-    const page=document.querySelector("#page-pref .slide-inner");
-    page.innerHTML=`
-      ${this.headerTpl("こだわり条件","back-pref")}
-      <div style="flex:1;overflow:auto;padding:16px;display:grid;grid-template-columns:33% 67%;gap:12px;">
-        <ul id="pref-menu" style="list-style:none;padding:0;margin:0;border-right:1px solid #ddd;"></ul>
-        <div id="pref-wrap"></div>
+  // 市が全選択か（＝市キーがON or 区が全部ON）
+  _isCityAllSelected(pref, city, wards) {
+    const S = this.tmp.loc;
+    if (S.has(`${pref}/${city}`)) return true;
+    if (!wards.length) return S.has(`${pref}/${city}`);
+    return wards.every(w => S.has(`${pref}/${city}/${w}`));
+  }
+
+  // チェック見た目の再描画（pref/city/ward）
+  refreshLocChecks() {
+    // 都道府県チェック更新
+    document.querySelectorAll(".pref-chk").forEach(ch => {
+      const pref = ch.getAttribute("data-pref");
+      ch.checked = this._isPrefAllSelected(pref);
+      ch.parentElement.parentElement.style.background = ch.checked ? "rgba(220,38,38,0.06)" : "#fff";
+    });
+    // 市チェック更新
+    document.querySelectorAll(".city-chk").forEach(ch => {
+      const pref = ch.getAttribute("data-pref");
+      const city = ch.getAttribute("data-city");
+      const wards = this.WARD_DATA[city] || [];
+      ch.checked = this._isCityAllSelected(pref, city, wards);
+      // 行の背景
+      const row = ch.closest("div[style*='border-bottom']");
+      if (row) row.style.background = ch.checked ? "rgba(220,38,38,0.06)" : "#fff";
+    });
+    // 区チェック更新
+    document.querySelectorAll(".ward-chk").forEach(ch => {
+      const pref = ch.getAttribute("data-pref");
+      const city = ch.getAttribute("data-city");
+      const ward = ch.getAttribute("data-ward");
+      ch.checked = this.tmp.loc.has(`${pref}/${city}/${ward}`);
+    });
+  }
+
+  // 地域メニューの赤丸（選択があれば点灯）
+  updateRegionDot() {
+    const regions = Object.keys(this.REGION_PREFS);
+    regions.forEach(r => {
+      const prefs = this.REGION_PREFS[r] || [];
+      let picked = false;
+      for (const pref of prefs) {
+        if (this._hasAnyChildrenUnderPref(pref)) { picked = true; break; }
+      }
+      const dot = document.querySelector(`[data-dot-region="${r}"]`);
+      if (dot) dot.style.display = picked ? "inline-block" : "none";
+    });
+  }
+
+  // 初期画面表示用に勤務地を要約（府県 > 市 > 区）
+  summarizeLocations(list) {
+    if (!list || !list.length) return [];
+    // 階層へ分解
+    const byPref = {};
+    for (const v of list) {
+      const parts = v.split("/");
+      const pref = parts[0];
+      const city = parts[1];
+      const ward = parts[2];
+      if (!byPref[pref]) byPref[pref] = {};
+      if (city) {
+        if (!byPref[pref][city]) byPref[pref][city] = new Set();
+        if (ward) byPref[pref][city].add(ward);
+        else byPref[pref][city].add("*CITY*"); // 市自体が選択
+      } else {
+        // 府県直
+        byPref[pref]["*PREF*"] = new Set(["*PREF*"]);
+      }
+    }
+    const out = [];
+    Object.keys(byPref).forEach(pref => {
+      const cities = byPref[pref];
+      // 県直がある → 府県名のみ
+      if (cities["*PREF*"]) { out.push(pref); return; }
+      const cityNames = Object.keys(cities);
+      // すべての市が[*CITY*]扱いなら県名のみ
+      const allCityFlag = cityNames.length &&
+        cityNames.every(c => cities[c].has("*CITY*"));
+      if (allCityFlag) { out.push(pref); return; }
+      // そうでなければ、代表で府県名を出す（見やすさ優先）
+      out.push(pref);
+    });
+    return out;
+    // ※ 必要なら「京都府、京都市、伏見区…」の粒度に拡張可能
+  }
+
+  /* =========================
+   * 職種ページ（簡易）
+   * ========================= */
+  buildJobPage() {
+    const cont = document.getElementById("job-content");
+    const sampleJobs = [
+      "接客・販売","ホール","キッチン","カフェスタッフ","倉庫作業","仕分け・シール貼り",
+      "品出し（ピッキング）","レジ","警備員","交通誘導","コールセンター","軽作業"
+    ];
+    cont.innerHTML = `
+      <div style="padding:10px;">
+        <input id="job-key" placeholder="職種をフリーワードで探す" style="width:100%;border:1px solid #ddd;border-radius:8px;height:38px;padding:0 10px;margin-bottom:10px;">
+        <div id="job-list" style="display:grid;gap:8px;">
+          ${sampleJobs.map(j=>`
+            <label style="display:flex;align-items:center;gap:8px;border:1px solid #f1f5f9;border-radius:8px;padding:10px;">
+              <input type="checkbox" class="job-chk" value="${j}" ${this.tmp.job.has(j)?"checked":""} style="accent-color:#dc2626;width:16px;height:16px;">
+              <span>${j}</span>
+            </label>
+          `).join("")}
+        </div>
       </div>
-      <div class="footer-buttons" style="position:sticky;bottom:0;left:0;right:0;padding:10px 12px;background:#fff;border-top:1px solid #eee;display:flex;gap:8px;">
-        <button class="btn-clear" id="clear-pref" style="flex:1;min-width:88px;border:1px solid #222;background:#fff;color:#111;border-radius:8px;padding:10px;font-weight:600;">クリア</button>
-        <button class="btn-apply" id="apply-pref" style="flex:5;border:none;background:#e53935;color:#fff;border-radius:8px;padding:10px;font-weight:700;">内容を反映する</button>
-      </div>`;
+    `;
+    cont.querySelectorAll(".job-chk").forEach(ch=>{
+      ch.addEventListener("change",(e)=>{
+        const v = e.target.value;
+        if (e.target.checked) this.tmp.job.add(v); else this.tmp.job.delete(v);
+      });
+    });
+    cont.querySelector("#job-key").addEventListener("input", e=>{
+      const q = e.target.value.trim();
+      cont.querySelectorAll(".job-chk").forEach(ch=>{
+        const row = ch.closest("label");
+        row.style.display = (!q || ch.value.includes(q)) ? "" : "none";
+      });
+    });
+  }
 
-    document.getElementById("back-pref").onclick=()=>this.closeSlide("pref");
-
-    const menu=page.querySelector("#pref-menu"),wrap=page.querySelector("#pref-wrap");
-    const cats=Object.keys(this.ds.preferences);
-
-    menu.innerHTML=cats.map((c,i)=>`
-      <li>
-        <button class="side-btn ${i===0?"active":""}" data-cat="${c}"
-          style="width:100%;text-align:left;padding:10px;background:${i===0?"#eaeaea":"#fafafa"};border:none;">
-          ${c}
-        </button>
-      </li>`).join("");
-
-    const renderCat=(cat)=>{
-      const opts=this.ds.preferences[cat]||[];
-      wrap.innerHTML=opts.map(o=>`
-        <label class="opt" style="display:block;padding:6px 4px;font-size:14px;">
-          <input class="checkbox pref-chk" type="checkbox" value="${o}"> ${o}
-        </label>`).join("");
-      // 状態同期
-      wrap.querySelectorAll(".pref-chk").forEach(cb=>{
-        cb.checked = this.state.prefs.includes(cb.value);
+  /* =========================
+   * こだわりページ（簡易）
+   * ========================= */
+  buildPrefPage() {
+    const cont = document.getElementById("pref-content");
+    const cats = {
+      "人気条件": ["未経験OK","駅近","シフト自由","土日祝休み"],
+      "勤務時間・休日": ["週2・3〜OK","残業なし","10時以降勤務OK"],
+      "給与": ["高収入","日払い","給与UP"],
+      "待遇・福利厚生": ["交通費支給","従業員割引あり"]
+    };
+    const catNames = Object.keys(cats);
+    cont.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 2fr;min-height:100%;">
+        <div style="border-right:1px solid #eee;">
+          ${catNames.map((c,i)=>`
+            <button class="pref-cat ${i===0?"active":""}" data-cat="${c}" style="
+              display:block;width:100%;text-align:left;border:none;background:#fff;cursor:pointer;
+              padding:10px;border-bottom:1px solid #f6f6f6;font-weight:${i===0?"700":"600"};
+              ${i===0?"background:#f8fafc;":""}
+            ">${c}</button>
+          `).join("")}
+        </div>
+        <div id="pref-items" style="padding:10px;"></div>
+      </div>
+    `;
+    const renderItems = (c)=>{
+      const items = cats[c] || [];
+      const box = cont.querySelector("#pref-items");
+      box.innerHTML = items.map(v=>`
+        <label style="display:flex;align-items:center;gap:8px;border:1px solid #f1f5f9;border-radius:8px;padding:10px;margin-bottom:8px;">
+          <input type="checkbox" class="pref-chk" value="${v}" ${this.tmp.pref.has(v)?"checked":""} style="accent-color:#dc2626;width:16px;height:16px;">
+          <span>${v}</span>
+        </label>
+      `).join("");
+      box.querySelectorAll(".pref-chk").forEach(ch=>{
+        ch.addEventListener("change",(e)=>{
+          const v = e.target.value;
+          if (e.target.checked) this.tmp.pref.add(v); else this.tmp.pref.delete(v);
+        });
       });
     };
-
-    menu.querySelectorAll(".side-btn").forEach(b=>b.addEventListener("click",()=>{
-      menu.querySelectorAll(".side-btn").forEach(a=>{a.classList.remove("active");a.style.background="#fafafa";});
-      b.classList.add("active");b.style.background="#eaeaea";
-      renderCat(b.getAttribute("data-cat"));
-    }));
-
-    renderCat(cats[0]);
-
-    document.getElementById("clear-pref").onclick=()=>{
-      this.state.prefs = [];
-      document.querySelectorAll("#page-pref .pref-chk").forEach(cb=>cb.checked=false);
-      this.updateConditionLabels();
-    };
-    document.getElementById("apply-pref").onclick=()=>{
-      const checked=Array.from(document.querySelectorAll("#page-pref .pref-chk:checked")).map(c=>c.value);
-      this.state.prefs=checked;
-      this.updateConditionLabels();
-      this.closeSlide("pref");
-    };
+    cont.querySelectorAll(".pref-cat").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        cont.querySelectorAll(".pref-cat").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        renderItems(btn.getAttribute("data-cat"));
+      });
+    });
+    renderItems(catNames[0]);
   }
 
-  /* ------------------------------
+  /* =========================
    * 検索実行
-   * ------------------------------ */
-  async applySearch(){
-    const all=await DataService.getAllAccounts();
-    const k=(this.state.keyword||"").toLowerCase();
+   * ========================= */
+  async applySearch() {
+    const all = await DataService.getAllAccounts();
+    const k = (this.state.keyword || "").toLowerCase();
 
-    const filtered=all.filter(job=>{
-      const text=`${job.name} ${job.station} ${job.jobCategories?.join(" ")} ${job.jobDisplay} ${job.address}`.toLowerCase();
-      const passKey=k?text.includes(k):true;
+    const filtered = all.filter(job => {
+      const text = `${job.name} ${job.station} ${(job.jobCategories||[]).join(" ")} ${job.jobDisplay||""} ${job.address||""}`.toLowerCase();
+      const passKey = k ? text.includes(k) : true;
 
-      const passLoc=this.state.locations.length
-        ? this.state.locations.some(loc=>{
+      const passLoc = this.state.locations.length
+        ? this.state.locations.some(loc => {
             const [pref, city, ward] = loc.split("/");
-            const s = `${job.prefecture}/${job.city}`;
-            if (ward) return `${job.prefecture}/${job.city}/${job.ward||""}`.includes(loc);
-            return s.includes(city) || job.prefecture===pref;
+            const s = `${job.prefecture||""}/${job.city||""}`;
+            if (ward) return `${job.prefecture||""}/${job.city||""}/${job.ward||""}`.includes(loc);
+            return s.includes(city||"") || (job.prefecture===pref);
           })
         : true;
 
-      const passJob=this.state.jobs.length
-        ? (job.jobCategories||[]).some(j=> this.state.jobs.includes(j))
+      const passJob = this.state.jobs.length
+        ? (job.jobCategories||[]).some(j => this.state.jobs.includes(j))
         : true;
 
-      const passPref=this.state.prefs.length
-        ? (job.tags||[]).some(t=> this.state.prefs.includes(t))
+      const passPref = this.state.prefs.length
+        ? (job.tags||[]).some(t => this.state.prefs.includes(t))
         : true;
 
       return passKey && passLoc && passJob && passPref;
@@ -708,11 +654,16 @@ class SearchForm {
 
     this.onSearch(filtered);
   }
+
+  /* =========================
+   * 外部からの反映（必要時）
+   * ========================= */
+  updateSelection(key, values) {
+    if (key === "loc") this.state.locations = values || [];
+    if (key === "job") this.state.jobs = values || [];
+    if (key === "pref") this.state.prefs = values || [];
+    this.render();
+  }
 }
 
-/* ===== ヘルパ ===== */
-
- // ※ この関数は明示的に使用していませんが、将来の表示用に残しています
-function fixCity(c){
-  return c?.replace(/^京都市/,'').replace(/^大阪市/,'').replace(/^神戸市/,'');
-}
+window.SearchForm = SearchForm;
