@@ -212,73 +212,103 @@ class SearchForm {
       </li>
     `).join("");
 
-  const renderPrefs = (region) => {
-    const prefs = this.ds.REGION_PREFS[region] || [];
-    prefWrap.innerHTML = prefs.map(pref => `
-      <div class="pref-block" style="border-bottom:1px solid #eee;padding:8px 0;">
-        <div class="pref-head" style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-weight:600">${pref}</span>
-          <button class="toggle" data-pref="${pref}" style="background:transparent;border:none;cursor:pointer;font-weight:bold;font-size:16px;color:#444">＋</button>
-        </div>
-        <div class="inner hidden" data-city-list="${pref}" style="display:none;padding-left:12px;margin-top:4px;"></div>
+const renderPrefs = (region) => {
+  const prefs = this.ds.REGION_PREFS[region] || [];
+  prefWrap.innerHTML = prefs.map(pref => `
+    <div class="pref-block" style="border-bottom:1px solid #eee;padding:8px 0;">
+      <div class="pref-head" style="display:flex;justify-content:space-between;align-items:center;">
+        <label class="opt" style="display:flex;align-items:center;gap:6px;">
+          <input class="checkbox pref-chk" type="checkbox" data-pref="${pref}" style="accent-color:#e53935;">
+          <span style="font-weight:600;">${pref}</span>
+        </label>
+        <button class="toggle" data-pref="${pref}" style="background:transparent;border:none;cursor:pointer;font-weight:bold;font-size:16px;color:#444">＋</button>
       </div>
-    `).join("");
+      <div class="inner hidden" data-city-list="${pref}" style="display:none;padding-left:12px;margin-top:4px;"></div>
+    </div>
+  `).join("");
 
-    prefWrap.querySelectorAll(".toggle").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const pref = btn.getAttribute("data-pref");
-        const list = prefWrap.querySelector(`[data-city-list="${pref}"]`);
-        const isHidden = list.style.display === "none";
+  prefWrap.querySelectorAll(".toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const pref = btn.getAttribute("data-pref");
+      const list = prefWrap.querySelector(`[data-city-list="${pref}"]`);
+      const isHidden = list.style.display === "none";
 
-        if (isHidden) {
-          const citiesObj = (window.PREF_CITY_DATA && window.PREF_CITY_DATA[pref]) || {};
-          const cityNames = Object.keys(citiesObj);
-          list.innerHTML = cityNames.map(city => {
-            const wards = Array.isArray(citiesObj[city]) ? citiesObj[city] : [];
-            const hasWards = wards.length > 0;
-            return `
-              <div class="city-block" style="padding:6px 0;">
-                <div class="city-head" style="display:flex;justify-content:space-between;align-items:center;">
-                  <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
-                    <input class="checkbox" type="checkbox" data-loc="${pref}/${city}" style="margin-right:6px;"> ${city}
-                  </label>
-                  ${hasWards ? `<button class="toggle" data-city="${city}" style="background:transparent;border:none;cursor:pointer;font-weight:bold;font-size:16px;color:#444">＋</button>` : ""}
-                </div>
-                ${hasWards ? `
-                  <div class="inner hidden" data-ward-list="${city}" style="display:none;padding-left:12px;margin-top:4px;">
-                    ${wards.map(w => `
-                      <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
-                        <input class="checkbox" type="checkbox" data-loc="${pref}/${city}/${w}" style="margin-right:6px;"> ${w}
-                      </label>
-                    `).join("")}
-                  </div>
-                ` : ""}
+      if (isHidden) {
+        const citiesObj = (window.PREF_CITY_DATA && window.PREF_CITY_DATA[pref]) || {};
+        const cityNames = Object.keys(citiesObj);
+        list.innerHTML = cityNames.map(city => {
+          const wards = Array.isArray(citiesObj[city]) ? citiesObj[city] : [];
+          const hasWards = wards.length > 0;
+          return `
+            <div class="city-block" style="padding:6px 0;">
+              <div class="city-head" style="display:flex;justify-content:space-between;align-items:center;">
+                <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
+                  <input class="checkbox city-chk" type="checkbox" data-loc="${pref}/${city}" data-pref="${pref}" style="accent-color:#e53935;margin-right:6px;"> ${city}
+                </label>
+                ${hasWards ? `<button class="toggle" data-city="${city}" style="background:transparent;border:none;cursor:pointer;font-weight:bold;font-size:16px;color:#444">＋</button>` : ""}
               </div>
-            `;
-          }).join("");
+              ${hasWards ? `
+                <div class="inner hidden" data-ward-list="${city}" style="display:none;padding-left:12px;margin-top:4px;">
+                  ${wards.map(w => `
+                    <label class="opt" style="display:block;padding:4px 0;font-size:14px;">
+                      <input class="checkbox ward-chk" type="checkbox" data-loc="${pref}/${city}/${w}" data-pref="${pref}" style="accent-color:#e53935;margin-right:6px;"> ${w}
+                    </label>
+                  `).join("")}
+                </div>
+              ` : ""}
+            </div>
+          `;
+        }).join("");
 
-          // 区の展開イベント
-          list.querySelectorAll("[data-city]").forEach(cityBtn => {
-            cityBtn.addEventListener("click", () => {
-              const city = cityBtn.getAttribute("data-city");
-              const wardList = list.querySelector(`[data-ward-list="${city}"]`);
-              const isHiddenWard = wardList && (wardList.style.display === "none");
-              if (wardList) {
-                wardList.style.display = isHiddenWard ? "block" : "none";
-                cityBtn.textContent = isHiddenWard ? "－" : "＋";
-              }
-            });
+        // 区展開
+        list.querySelectorAll("[data-city]").forEach(b => {
+          b.addEventListener("click", () => {
+            const city = b.getAttribute("data-city");
+            const w = list.querySelector(`[data-ward-list="${city}"]`);
+            const isHiddenWard = w && (w.style.display === "none");
+            if (w) {
+              w.style.display = isHiddenWard ? "block" : "none";
+              b.textContent = isHiddenWard ? "－" : "＋";
+            }
           });
+        });
 
-          list.style.display = "block";
-          btn.textContent = "－";
-        } else {
-          list.style.display = "none";
-          btn.textContent = "＋";
-        }
-      });
+        list.style.display = "block";
+        btn.textContent = "－";
+      } else {
+        list.style.display = "none";
+        btn.textContent = "＋";
+      }
     });
-  };
+  });
+
+  // ✅ 都道府県チェック：配下すべてON/OFF
+  prefWrap.querySelectorAll(".pref-chk").forEach(prefChk => {
+    prefChk.addEventListener("change", () => {
+      const pref = prefChk.getAttribute("data-pref");
+      const checked = prefChk.checked;
+      const cityCheckboxes = prefWrap.querySelectorAll(`input[data-pref="${pref}"]`);
+      cityCheckboxes.forEach(cb => {
+        cb.checked = checked;
+        cb.closest("label").style.background = checked ? "#ffecec" : "transparent";
+      });
+      // 都道府県行の色も変える
+      const parentDiv = prefChk.closest(".pref-head");
+      if (parentDiv) parentDiv.style.background = checked ? "#ffecec" : "transparent";
+    });
+  });
+
+  // ✅ 個別のチェック時にも背景を反映
+  prefWrap.addEventListener("change", e => {
+    if (e.target.classList.contains("checkbox")) {
+      const label = e.target.closest("label");
+      if (label) {
+        label.style.background = e.target.checked ? "#ffecec" : "transparent";
+      }
+    }
+  });
+};
+
 
     // 地域切替
     regionMenu.querySelectorAll(".side-btn").forEach(btn => {

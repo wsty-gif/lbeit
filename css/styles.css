@@ -883,3 +883,12 @@ img{image-rendering:auto}
   justify-content: flex-end;
   gap: 8px;
 }
+
+input[type="checkbox"] {
+  accent-color: #e53935; /* 赤チェック */
+}
+
+label.opt {
+  transition: background 0.2s ease;
+  border-radius: 4px;
+}
