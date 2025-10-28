@@ -81,9 +81,7 @@ class SearchForm {
     this.updateConditionLabels();
   }
 
-  /* ------------------------------
-   * 共通UI片
-   * ------------------------------ */
+// ✅ condRow() と updateConditionLabels() の最新版
 condRow(key, label, icon) {
   const value = this.state[key + "ations"] || [];
   const hasValue = value.length > 0;
@@ -91,69 +89,54 @@ condRow(key, label, icon) {
   const id = `val-${key}`;
 
   return `
-    <div class="cond-row" id="open-${key}" 
+    <div class="cond-row" id="open-${key}"
          style="border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;">
       
-      <!-- 上段：タイトル行 -->
+      <!-- 上段 -->
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div style="display:flex;align-items:center;gap:8px;">
           <i class="${icon}" style="color:#555;font-size:1.1rem;"></i>
           <span style="font-weight:600;">${label}</span>
         </div>
-        ${
-          hasValue
-            ? `<span class="clear-btn" data-clear="${key}" 
-                style="color:#007bff;font-size:0.9rem;white-space:nowrap;">条件をクリア</span>`
-            : ``
-        }
+        <span class="clear-btn" data-clear="${key}"
+              style="color:#007bff;font-size:0.9rem;white-space:nowrap;
+                     display:${hasValue ? "inline" : "none"};">
+          条件をクリア
+        </span>
       </div>
 
-      <!-- 下段：内容行（常時表示） -->
-      <div style="display:flex;justify-content:space-between;
-                  align-items:center;margin-left:28px;margin-top:4px;">
-        <span id="${id}" 
-              style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-                     color:#444;font-size:0.95rem;max-width:90%;">
+      <!-- 下段 -->
+      <div style="display:flex;justify-content:space-between;align-items:center;
+                  margin-left:28px;margin-top:4px;">
+        <span id="${id}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                               color:#444;font-size:0.95rem;max-width:90%;">
           ${valText}
         </span>
-        ${
-          !hasValue
-            ? `<span style="color:#999;font-size:1.2rem;">＞</span>`
-            : ``
-        }
+        ${!hasValue ? `<span style="color:#999;font-size:1.2rem;">＞</span>` : ""}
       </div>
     </div>
   `;
 }
 
-
-
 updateConditionLabels() {
-  // 現在の状態からラベルを再生成
-  const formatLocations = (locations) => {
-    if (!locations || locations.length === 0) return "未設定";
-    const lowest = locations.map(loc => loc.split("/").pop());
-    return [...new Set(lowest)].join("、");
-  };
+  const format = (arr) => (arr && arr.length ? arr.join("、") : "未設定");
+  const locText = this.state.locations.length
+    ? this.state.locations.map(l => l.split("/").pop()).join("、")
+    : "未設定";
 
-  const formatList = (arr) => (arr && arr.length ? arr.join("、") : "未設定");
+  const fields = [
+    { key: "loc", val: locText },
+    { key: "job", val: format(this.state.jobs) },
+    { key: "pref", val: format(this.state.prefs) }
+  ];
 
-  const locEl = this.el.querySelector("#val-loc");
-  const jobEl = this.el.querySelector("#val-job");
-  const prefEl = this.el.querySelector("#val-pref");
-
-  if (locEl) locEl.textContent = formatLocations(this.state.locations);
-  if (jobEl) jobEl.textContent = formatList(this.state.jobs);
-  if (prefEl) prefEl.textContent = formatList(this.state.prefs);
-
-  // 「条件をクリア」ボタンの表示制御
-  ["loc", "job", "pref"].forEach(key => {
+  fields.forEach(({ key, val }) => {
+    const span = this.el.querySelector(`#val-${key}`);
     const clearBtn = this.el.querySelector(`[data-clear="${key}"]`);
-    const hasValue = (this.state[key + "ations"] || []).length > 0;
-    if (clearBtn) clearBtn.style.display = hasValue ? "inline" : "none";
+    if (span) span.textContent = val;
+    if (clearBtn) clearBtn.style.display = val === "未設定" ? "none" : "inline";
   });
 }
-
 
   ensureSlideContainer() {
     if (document.getElementById("slide-container")) return;
