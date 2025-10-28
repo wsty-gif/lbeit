@@ -82,6 +82,9 @@ class SearchForm {
   }
 
 // ✅ condRow() と updateConditionLabels() の最新版
+/* ===============================
+ * condRow：常に2行構成＋「＞」は常時表示
+ * =============================== */
 condRow(key, label, icon) {
   const value = this.state[key + "ations"] || [];
   const hasValue = value.length > 0;
@@ -93,7 +96,8 @@ condRow(key, label, icon) {
          style="border-bottom:1px solid #eee;padding:10px 0;cursor:pointer;">
       
       <!-- 上段 -->
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div class="cond-header"
+           style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <i class="${icon}" style="color:#555;font-size:1.1rem;"></i>
           <span style="font-weight:600;">${label}</span>
@@ -106,18 +110,24 @@ condRow(key, label, icon) {
       </div>
 
       <!-- 下段 -->
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  margin-left:28px;margin-top:4px;">
-        <span id="${id}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-                               color:#444;font-size:0.95rem;max-width:90%;">
+      <div class="cond-value"
+          style="display:flex;justify-content:space-between;align-items:center;
+                  margin-left:28px;max-width:100%;">
+        <span id="${id}"
+              style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                    color:#444;font-size:0.95rem;min-width:0;">
           ${valText}
         </span>
-        ${!hasValue ? `<span style="color:#999;font-size:1.2rem;">＞</span>` : ""}
+        <!-- 常に矢印を表示 -->
+        <span class="arrow" style="color:#999;font-size:1.2rem;flex-shrink:0;margin-left:6px;">＞</span>
       </div>
     </div>
   `;
 }
 
+/* ===============================
+ * updateConditionLabels：テキスト・クリア表示のみ制御
+ * =============================== */
 updateConditionLabels() {
   const format = (arr) => (arr && arr.length ? arr.join("、") : "未設定");
   const locText = this.state.locations.length
@@ -134,9 +144,13 @@ updateConditionLabels() {
     const span = this.el.querySelector(`#val-${key}`);
     const clearBtn = this.el.querySelector(`[data-clear="${key}"]`);
     if (span) span.textContent = val;
-    if (clearBtn) clearBtn.style.display = val === "未設定" ? "none" : "inline";
+    if (clearBtn) {
+      clearBtn.style.display = val === "未設定" ? "none" : "inline";
+    }
+    // 「＞」は常に表示するため、非表示制御は削除
   });
 }
+
 
   ensureSlideContainer() {
     if (document.getElementById("slide-container")) return;
@@ -345,19 +359,32 @@ updateConditionLabels() {
     renderPrefs(regions[0]);
 
     // クリア / 適用
-    document.getElementById("clear-loc").onclick=()=>{
+    // クリアボタン
+    document.getElementById("clear-loc").onclick = () => {
       this._tempLoc.clear();
-      // 現在表示中のチェックを全OFF
-      document.querySelectorAll('#page-loc input[type="checkbox"][data-loc]').forEach(cb=>cb.checked=false);
+      // チェック全解除
+      document.querySelectorAll('#page-loc input[type="checkbox"][data-loc]').forEach(cb => cb.checked = false);
       this.syncCheckboxesIn(document.getElementById("page-loc"));
+      const REGION_PREFS = this.normalizeRegions(this.ds.REGION_PREFS);
       this.updateRegionDots(REGION_PREFS);
+
+      // ステートも更新して表示反映
+      this.state.locations = [];
+      this.updateConditionLabels();
     };
 
-    document.getElementById("apply-loc").onclick=()=>{
+    // ✅ 内容を反映するボタン
+    // ✅ 内容を反映するボタン
+    document.getElementById("apply-loc").onclick = () => {
+      // 選択結果を state に反映
       this.state.locations = Array.from(this._tempLoc);
-      this.updateConditionLabels();
+
+      // スライドを閉じたあとにラベル更新を実行（非同期でDOM確実反映）
       this.closeSlide("loc");
+      setTimeout(() => this.updateConditionLabels(), 400);
     };
+
+
   }
 
   // 都道府県配下の市・区を描画
