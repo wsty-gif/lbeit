@@ -183,6 +183,97 @@ class SearchForm {
 
   /** ========== 勤務地ページ ========== */
   buildLocationPage() {
+// ✅ チェックイベントを監視して親子連動
+body.addEventListener("change", (e) => {
+  if (!e.target.matches('input[type="checkbox"][data-loc]')) return;
+  const target = e.target;
+  const loc = target.getAttribute("data-loc");
+  const checked = target.checked;
+
+  const parts = loc.split("/"); // [都道府県, 市, 区]
+  const pref = parts[0];
+  const city = parts[1];
+  const ward = parts[2];
+
+  // ① 区レベルのチェック → 親市＆都道府県へ波及
+  if (ward) {
+    if (checked) {
+      const cityCheckbox = body.querySelector(`input[data-loc="${pref}/${city}"]`);
+      const prefCheckbox = body.querySelector(`input[data-loc="${pref}"]`);
+      if (cityCheckbox) cityCheckbox.checked = true;
+      if (prefCheckbox) prefCheckbox.checked = true;
+    } else {
+      // 区が外された → 同じ市内の他の区が全て未チェックなら親をOFF
+      const remainingWards = Array.from(
+        body.querySelectorAll(`input[data-loc^="${pref}/${city}/"]`)
+      ).filter((cb) => cb.checked);
+      if (remainingWards.length === 0) {
+        const cityCheckbox = body.querySelector(`input[data-loc="${pref}/${city}"]`);
+        if (cityCheckbox) cityCheckbox.checked = false;
+
+        // 市が全て未選択なら都道府県もOFF
+        const remainingCities = Array.from(
+          body.querySelectorAll(`input[data-loc^="${pref}/"]`)
+        ).filter((cb) => cb.checked);
+        if (remainingCities.length === 0) {
+          const prefCheckbox = body.querySelector(`input[data-loc="${pref}"]`);
+          if (prefCheckbox) prefCheckbox.checked = false;
+        }
+      }
+    }
+  }
+
+  // ② 市レベルのチェック → 配下区一括ON/OFF
+  else if (city) {
+    const wardCheckboxes = Array.from(
+      body.querySelectorAll(`input[data-loc^="${pref}/${city}/"]`)
+    );
+    wardCheckboxes.forEach((cb) => (cb.checked = checked));
+
+    // 市がONなら都道府県もON
+    if (checked) {
+      const prefCheckbox = body.querySelector(`input[data-loc="${pref}"]`);
+      if (prefCheckbox) prefCheckbox.checked = true;
+    } else {
+      // 市がOFF → 都道府県内の他のチェック確認
+      const remainingCities = Array.from(
+        body.querySelectorAll(`input[data-loc^="${pref}/"]`)
+      ).filter((cb) => cb.checked);
+      if (remainingCities.length === 0) {
+        const prefCheckbox = body.querySelector(`input[data-loc="${pref}"]`);
+        if (prefCheckbox) prefCheckbox.checked = false;
+      }
+    }
+  }
+
+  // ③ 都道府県レベルのチェック → 配下全てON/OFF
+  else if (pref) {
+    const children = Array.from(
+      body.querySelectorAll(`input[data-loc^="${pref}/"]`)
+    );
+    children.forEach((cb) => (cb.checked = checked));
+  }
+
+  // ✅ 見た目を更新（赤背景・チェック赤色）
+  updateSelectionStyles();
+});
+
+// ✅ チェック中の項目を赤背景に
+function updateSelectionStyles() {
+  body.querySelectorAll("label.opt").forEach((label) => {
+    const input = label.querySelector("input[type='checkbox']");
+    if (input?.checked) {
+      label.style.background = "rgba(255, 0, 0, 0.08)";
+      label.style.borderRadius = "6px";
+    } else {
+      label.style.background = "transparent";
+    }
+  });
+  body.querySelectorAll("input[type='checkbox']:checked").forEach((cb) => {
+    cb.style.accentColor = "#e53935"; // チェックを赤色に
+  });
+}
+
     const page = document.querySelector("#page-loc .slide-inner");
     page.innerHTML = `
       ${this.headerTpl("勤務地", "back-loc")}
