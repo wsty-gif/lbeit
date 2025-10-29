@@ -11,31 +11,42 @@ class Detail {
       .replace(/\\n/g, "\n")
       .replace(/\n/g, "<br>");
 
-    // ✅ カンマ区切り画像を配列化
-    const images = (acc.image || "")
-      .split(",")
-      .map((url) => url.trim())
-      .filter((url) => url);
 
-    // ✅ カルーセルHTML
-    const imageSlider = images.length
-      ? `
-      <div class="relative overflow-hidden rounded-lg touch-pan-x select-none">
-        <div class="flex transition-transform duration-300 ease-in-out" id="imgSlider">
-          ${images.map(url => `
-            <img src="${url}" class="w-full h-64 sm:h-72 object-cover flex-shrink-0" alt="${acc.name}">
-          `).join("")}
-        </div>
-        ${images.length > 1 ? `
-          <button id="prevImg" class="absolute top-1/2 left-3 -translate-y-1/2 bg-white/70 p-2 rounded-full shadow hover:bg-white">
-            <i data-lucide="chevron-left"></i>
-          </button>
-          <button id="nextImg" class="absolute top-1/2 right-3 -translate-y-1/2 bg-white/70 p-2 rounded-full shadow hover:bg-white">
-            <i data-lucide="chevron-right"></i>
-          </button>
-        ` : ""}
-      </div>`
-      : "";
+
+// 旧：単一画像のみ表示している箇所を以下に置き換え
+const images = (acc.image || "")
+  .split(",")
+  .map((u) => u.trim())
+  .filter(Boolean);
+
+const mainImage = images.length
+  ? images[0]
+  : "https://via.placeholder.com/800x500?text=No+Image";
+
+let imageSlider = `
+  <div class="relative">
+    <img id="main-image" src="${mainImage}" alt="${acc.name}" class="w-full h-60 object-cover rounded-lg transition-all duration-300">
+  </div>
+`;
+
+if (images.length > 1) {
+  imageSlider += `
+    <div id="thumbnail-list" class="flex gap-2 overflow-x-auto mt-2 pb-2">
+      ${images
+        .map(
+          (url, i) => `
+          <img src="${url}" 
+               data-index="${i}"
+               class="thumb w-20 h-14 object-cover rounded-md border ${
+                 i === 0 ? "border-red-500" : "border-transparent"
+               } cursor-pointer hover:opacity-80 transition">
+        `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 
     // ✅ 長文の高さ制御
     const longSection = (title, body, id) => {
@@ -91,6 +102,22 @@ class Detail {
         </div>
       </div>
     `;
+// ✅ サムネイルクリックでメイン画像切替
+const mainImgEl = this.container.querySelector("#main-image");
+const thumbs = this.container.querySelectorAll(".thumb");
+
+thumbs.forEach((thumb) => {
+  thumb.addEventListener("click", (e) => {
+    const index = Number(e.target.dataset.index);
+    mainImgEl.src = images[index];
+
+    // 枠線の更新
+    thumbs.forEach((t) => t.classList.remove("border-red-500"));
+    e.target.classList.add("border-red-500");
+  });
+});
+
+
 
     // ✅ 「もっと見る」ボタン処理
     this.container.querySelectorAll(".more-btn").forEach((btn) => {

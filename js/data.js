@@ -52,7 +52,7 @@ const DataService = {
         placeDetail: norm(r["勤務地詳細"]),
         externalUrl: norm(r["外部URL"]),
         lineId: norm(r["LINE_ID"]),
-        images: splitCsv(r["画像URL（カンマ区切り）"] || r["画像URL"]),
+        image: splitCsv(r["画像URL（カンマ区切り）"] || r["画像URL"])[0] || "",
         features: splitCsv(r["こだわり（カンマ区切り）"] || r["こだわり"]),
       }));
 
