@@ -22,7 +22,7 @@ const app = async () => {
   new SearchForm(formEl, onSearch);
 
   // 初回（条件なし）
-  onSearch({ keyword:"", locations:[], jobCategories:[], preferences:[], popular:[], annualMin:"", employments:[] });
+  // onSearch({ keyword:"", locations:[], jobCategories:[], preferences:[], popular:[], annualMin:"", employments:[] });
 };
 
 window.addEventListener("DOMContentLoaded", app);

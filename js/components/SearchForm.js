@@ -88,10 +88,22 @@ class SearchForm {
 
           <!-- ▼ 年収 -->
           <div id="income-cond" style="margin-top:16px;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <i class="fa-solid fa-dollar-sign" style="color:#000;"></i>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="
+                display:inline-flex;
+                align-items:center;
+                justify-content:center;
+                background:#000;
+                color:#fff;
+                border-radius:50%;
+                width:1.2em;
+                height:1.2em;
+                font-size:1em;
+                line-height:1;
+              ">￥</span>
               <span style="font-weight:600;">年収</span>
             </div>
+
             <div style="margin-top:6px;">
               <button id="open-income" style="
                 width:100%;
@@ -107,7 +119,7 @@ class SearchForm {
 
           <!-- ▼ 雇用形態 -->
           <div id="employment-cond" style="margin-top:16px;">
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
               <i class="fa-solid fa-id-card" style="color:#000;"></i>
               <span style="font-weight:600;">雇用形態</span>
             </div>
@@ -122,25 +134,20 @@ class SearchForm {
                 <label class="emp-opt" data-value="${tag}" style="
                   display:flex;
                   align-items:center;
-                  justify-content:flex-start;
                   gap:8px;
+                  padding:8px 10px;
                   border:1px solid #ccc;
                   border-radius:10px;
-                  padding:8px 12px;
                   background:#fff;
-                  font-size:0.95rem;
+                  font-size:0.9rem;
                   cursor:pointer;
                   user-select:none;
-                  box-sizing:border-box;
                 ">
                   <input type="checkbox" style="
-                    appearance:none;
+                    accent-color:#e53935;
                     width:16px;
                     height:16px;
-                    border:1px solid #aaa;
-                    border-radius:3px;
-                    margin:0;
-                    position:relative;
+                    flex-shrink:0;
                   ">
                   <span>${tag}</span>
                 </label>
@@ -148,9 +155,11 @@ class SearchForm {
             </div>
           </div>
 
+
+
         </div>
 
-        <!-- ✅ フッター（常時固定） -->
+        <!-- ✅ フッター：常時表示の2ボタン -->
         <div id="search-footer" style="
           position: fixed;
           bottom: 0;
@@ -185,6 +194,7 @@ class SearchForm {
             font-weight: 700;
           ">この条件で検索する</button>
         </div>
+
       </div>
     `;
 
@@ -201,6 +211,75 @@ class SearchForm {
 
     // 検索実行
     this.el.querySelector("#btn-search").addEventListener("click", () => this.applySearch());
+
+    // ✅ すべてクリアボタン（全項目・全装飾リセット）
+    this.el.querySelector("#btn-clear").addEventListener("click", () => {
+      // --- 状態リセット ---
+      this.state = {
+        keyword: "",
+        locations: [],
+        jobs: [],
+        prefs: [],
+        income: null,
+        employments: []
+      };
+      this._tempLoc.clear();
+
+      // --- 入力欄リセット ---
+      const keyInput = this.el.querySelector("#sf-key");
+      if (keyInput) keyInput.value = "";
+
+      // --- 年収を未選択に戻す ---
+      const incomeBtn = this.el.querySelector("#open-income");
+      if (incomeBtn) incomeBtn.textContent = "未選択";
+
+      // --- 人気の条件・雇用形態リセット ---
+      this.el.querySelectorAll(".pop-opt, .emp-opt").forEach(label => {
+        const input = label.querySelector("input");
+        if (input) input.checked = false;
+        label.style.background = "#fff";
+        label.style.borderColor = "#ccc";
+        label.style.color = "#000";
+      });
+
+      // --- こだわり条件スライドも完全リセット ---
+      const prefContent = document.querySelector("#page-pref .slide-inner #pref-content");
+      if (prefContent) {
+        prefContent.querySelectorAll(".pref-chk").forEach(cb => {
+          cb.checked = false;
+          const label = cb.closest("label.pref-option");
+          if (label) {
+            label.style.background = "#fff";
+            label.style.borderColor = "#ccc";
+            label.style.color = "#000";
+          }
+        });
+      }
+
+      // --- 勤務地・職種・こだわり条件 ---
+      const locPage = document.getElementById("page-loc");
+      if (locPage) {
+        locPage.querySelectorAll('input[type="checkbox"][data-loc]').forEach(cb => {
+          cb.checked = false;
+          const label = cb.closest("label.opt");
+          if (label) label.style.background = "transparent";
+        });
+      }
+
+      const jobPage = document.getElementById("page-job");
+      if (jobPage) {
+        jobPage.querySelectorAll(".job-chk").forEach(cb => cb.checked = false);
+      }
+
+      // --- 地域ドット更新 ---
+      const REGION_PREFS = this.normalizeRegions(this.ds.REGION_PREFS);
+      this.updateRegionDots(REGION_PREFS);
+
+      // --- ラベル更新 ---
+      this.updateConditionLabels();
+    });
+
+
 
     // スライドページのコンテナ
     this.ensureSlideContainer();
@@ -365,7 +444,10 @@ clearCategoryCondition(key) {
       page.querySelectorAll('input[type="checkbox"][data-loc]').forEach(cb => {
         cb.checked = false;
         const label = cb.closest("label.opt");
-        if (label) label.style.background = "transparent";
+        if (label) {
+          label.style.background = "transparent";
+          label.style.border = "none";
+        }
       });
     }
 
@@ -380,7 +462,12 @@ clearCategoryCondition(key) {
       page.querySelectorAll(".job-chk").forEach(cb => {
         cb.checked = false;
         const label = cb.closest("label.opt");
-        if (label) label.style.background = "transparent";
+        if (label) {
+          label.style.background = "#fff";
+          label.style.border = "1px solid #ccc";
+          label.style.borderRadius = "6px";
+          label.style.color = "#000";
+        }
       });
     }
 
@@ -391,17 +478,24 @@ clearCategoryCondition(key) {
       page.querySelectorAll(".pref-chk").forEach(cb => {
         cb.checked = false;
         const label = cb.closest("label.pref-option");
-        if (label) label.style.background = "transparent";
+        if (label) {
+          // ✅ 赤背景・赤枠を完全リセット
+          label.style.background = "#fff";
+          label.style.border = "1px solid #ccc";
+          label.style.borderColor = "#ccc";
+          label.style.color = "#000";
+        }
       });
     }
   }
 
-  // ✅ 再同期（全体見た目をリセット）
+  // ✅ 全カテゴリ共通：再同期（チェックUIを正しくリセット）
   if (key === "loc") this.syncCheckboxesIn(document.getElementById("page-loc"));
 
   // 表示更新
   this.updateConditionLabels();
 }
+
 
 
   ensureSlideContainer() {
@@ -893,11 +987,9 @@ clearCategoryCondition(key) {
     };
     document.querySelector("#job-key").addEventListener("input", filter);
   }
+
 /* ------------------------------
- * こだわり条件ページ（丸枠スタイル付き）
- * ------------------------------ */
-/* ------------------------------
- * こだわり条件ページ（1行ごと＋チェックボックス入り）
+ * こだわり条件ページ（完全修正版）
  * ------------------------------ */
 buildPrefPage() {
   const prefsData = {
@@ -951,11 +1043,21 @@ buildPrefPage() {
           <div class="pref-section" id="sec-${cat}" style="margin-bottom:24px;">
             <h3 style="font-size:16px;font-weight:600;margin-bottom:8px;border-bottom:1px solid #ddd;padding-bottom:4px;">${cat}</h3>
             ${opts.map(o => `
-              <label class="pref-option">
-                <input type="checkbox" class="pref-chk" value="${o}">
+              <label class="pref-option" style="
+                display:flex;
+                align-items:center;
+                gap:6px;
+                border:1px solid #ccc;
+                border-radius:10px;
+                padding:8px 10px;
+                margin-bottom:6px;
+                cursor:pointer;
+                background:#fff;
+                color:#000;
+              ">
+                <input class="pref-chk" type="checkbox" value="${o}" style="accent-color:#e53935;">
                 <span>${o}</span>
-              </label>
-            `).join("")}
+              </label>`).join("")}
           </div>`).join("")}
       </div>
     </div>
@@ -966,22 +1068,15 @@ buildPrefPage() {
     </div>
   `;
 
-  // 戻るボタン
+  // 戻る
   document.getElementById("back-pref").onclick = () => this.closeSlide("pref");
 
-  // 左メニュークリック → 対応セクションまでスクロール
   const content = page.querySelector("#pref-content");
-  page.querySelectorAll("#pref-menu .side-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const cat = btn.getAttribute("data-cat");
-      const target = content.querySelector(`#sec-${cat}`);
-      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  });
 
-  // スクロール監視 → 表示中カテゴリの背景ハイライト
+  // スクロール同期
   const sections = content.querySelectorAll(".pref-section");
   const menuBtns = page.querySelectorAll("#pref-menu .side-btn");
+
   content.addEventListener("scroll", () => {
     let current = "";
     sections.forEach(sec => {
@@ -993,27 +1088,63 @@ buildPrefPage() {
     });
   });
 
-  // 状態同期（チェック反映）
+  // チェック状態同期
   content.querySelectorAll(".pref-chk").forEach(cb => {
-    cb.checked = this.state.prefs.includes(cb.value);
+    const label = cb.closest("label.pref-option");
+    if (this.state.prefs.includes(cb.value)) {
+      cb.checked = true;
+      label.style.background = "rgba(229,57,53,0.1)";
+      label.style.borderColor = "#e53935";
+      label.style.color = "#000";
+    }
+
+    // ✅ チェック操作時の見た目制御
     cb.addEventListener("change", e => {
-      const val = e.target.value;
       if (e.target.checked) {
-        if (!this.state.prefs.includes(val)) this.state.prefs.push(val);
+        label.style.background = "rgba(229,57,53,0.1)";
+        label.style.borderColor = "#e53935";
+        label.style.color = "#000";
+        if (!this.state.prefs.includes(cb.value)) this.state.prefs.push(cb.value);
       } else {
-        this.state.prefs = this.state.prefs.filter(v => v !== val);
+        label.style.background = "#fff";
+        label.style.borderColor = "#ccc";
+        label.style.color = "#000";
+        this.state.prefs = this.state.prefs.filter(v => v !== cb.value);
       }
     });
   });
 
-  // クリア・反映
+  // ✅ こだわり条件スライド内「条件をクリア」完全修正版
   document.getElementById("clear-pref").onclick = () => {
     this.state.prefs = [];
-    content.querySelectorAll(".pref-chk").forEach(cb => cb.checked = false);
+
+    const content = document.querySelector("#page-pref .slide-inner #pref-content");
+    if (!content) return;
+
+    content.querySelectorAll(".pref-chk").forEach(cb => {
+      // チェックボックス解除
+      cb.checked = false;
+
+      // ラベル装飾リセット
+      const label = cb.closest("label.pref-option");
+      if (label) {
+        label.style.background = "#fff";
+        label.style.border = "1px solid #ccc"; // ✅ ←ここを追加
+        label.style.borderColor = "#ccc";       // ✅ 念のため明示
+        label.style.color = "#000";
+      }
+    });
+
+    // 条件表示リセット
     this.updateConditionLabels();
   };
 
+
+
+  // ✅ 反映ボタン
   document.getElementById("apply-pref").onclick = () => {
+    const checked = Array.from(content.querySelectorAll(".pref-chk:checked")).map(c => c.value);
+    this.state.prefs = checked;
     this.updateConditionLabels();
     this.closeSlide("pref");
   };
@@ -1022,11 +1153,12 @@ buildPrefPage() {
 
 
 
+
   /* ------------------------------
    * 検索実行
    * ------------------------------ */
   async applySearch(){
-    const all=await DataService.getAllAccounts();
+    const all=await DataService.load();
     const k=(this.state.keyword||"").toLowerCase();
 
     const filtered=all.filter(job=>{
