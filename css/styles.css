@@ -990,3 +990,13 @@ label.opt {
   color: #b91c1c;
   font-weight: 600;
 }
+
+.clear-btn {
+  color: #1e88e5;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.clear-btn:hover {
+  text-decoration: underline;
+}

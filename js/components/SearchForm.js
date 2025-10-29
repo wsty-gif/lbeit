@@ -212,8 +212,69 @@ updateConditionLabels() {
     if (clearBtn) {
       clearBtn.style.display = val === "未設定" ? "none" : "inline";
     }
-    // 「＞」は常に表示するため、非表示制御は削除
   });
+
+  /* ✅ 追加：カテゴリ別「条件をクリア」イベント設定 */
+  this.el.querySelectorAll(".clear-btn").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation(); // スライドを開かない
+      const key = btn.dataset.clear;
+      this.clearCategoryCondition(key);
+    };
+  });
+}
+
+/* ===============================
+ * clearCategoryCondition：カテゴリごとにリセット＋UI反映（背景含む）
+ * =============================== */
+clearCategoryCondition(key) {
+  if (key === "loc") {
+    // 状態クリア
+    this.state.locations = [];
+    this._tempLoc.clear();
+
+    // チェックと背景クリア
+    const page = document.getElementById("page-loc");
+    if (page) {
+      page.querySelectorAll('input[type="checkbox"][data-loc]').forEach(cb => {
+        cb.checked = false;
+        const label = cb.closest("label.opt");
+        if (label) label.style.background = "transparent";
+      });
+    }
+
+    // 地域ドット更新
+    const REGION_PREFS = this.normalizeRegions(this.ds.REGION_PREFS);
+    this.updateRegionDots(REGION_PREFS);
+
+  } else if (key === "job") {
+    this.state.jobs = [];
+    const page = document.getElementById("page-job");
+    if (page) {
+      page.querySelectorAll(".job-chk").forEach(cb => {
+        cb.checked = false;
+        const label = cb.closest("label.opt");
+        if (label) label.style.background = "transparent";
+      });
+    }
+
+  } else if (key === "pref") {
+    this.state.prefs = [];
+    const page = document.getElementById("page-pref");
+    if (page) {
+      page.querySelectorAll(".pref-chk").forEach(cb => {
+        cb.checked = false;
+        const label = cb.closest("label.pref-option");
+        if (label) label.style.background = "transparent";
+      });
+    }
+  }
+
+  // ✅ 再同期（全体見た目をリセット）
+  if (key === "loc") this.syncCheckboxesIn(document.getElementById("page-loc"));
+
+  // 表示更新
+  this.updateConditionLabels();
 }
 
 
