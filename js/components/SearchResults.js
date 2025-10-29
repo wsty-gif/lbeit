@@ -5,31 +5,44 @@ class SearchResults {
   }
 
   show(list) {
+    // --- ✅ 0件時 ---
     if (!list || list.length === 0) {
       this.container.innerHTML = `
         <div class="text-center py-16 bg-white rounded-xl shadow">
-          <div class="text-6xl mb-3">🔍</div>
-          <p class="text-gray-700 font-semibold">該当する求人は見つかりませんでした。</p>
+          <p class="text-gray-800 font-semibold text-lg mb-2">
+            該当する求人は見つかりませんでした。
+          </p>
+          <p class="text-gray-500 text-sm">
+            条件をゆるめて、再検索してください
+          </p>
         </div>`;
       return;
     }
 
+    // --- ✅ 結果あり ---
     this.container.innerHTML = `
       <div class="mb-3 text-sm text-gray-600">検索結果：<span class="font-bold">${list.length}</span>件</div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div id="result-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         ${list.map(acc => this.card(acc)).join("")}
       </div>
     `;
 
-    this.container.querySelectorAll(".job-card").forEach(card=>{
-      card.addEventListener("click", (e)=>{
-        if (e.target.closest("a")) return;
+    // 詳細ボタン処理
+    this.container.querySelectorAll(".job-card").forEach(card => {
+      card.addEventListener("click", (e) => {
+        if (e.target.closest("a")) return; // LINE応募ボタンを除外
         this.onDetail(card.dataset.id);
       });
     });
+
+    // --- ✅ 検索結果の1件目にスクロール ---
+    const firstCard = this.container.querySelector(".job-card");
+    if (firstCard) {
+      firstCard.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
 
-  // 指定：店名＋「都道府県市区町村 / 最寄駅」＋カテゴリ＋時給
+  // --- ✅ カード生成 ---
   card(acc) {
     const catText = acc.categories.join("、 ");
     const areaText = `${acc.prefecture}${acc.city ? acc.city : ""} ⁄ ${acc.station || "最寄駅未記載"}`;

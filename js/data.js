@@ -82,21 +82,24 @@ const DataService = {
     }
 
     // 🔸 勤務地（都道府県・市区町村）— OR
-    if (filters.locations && filters.locations.length > 0) {
+    if (filters.locations?.length) {
+      const normalize = s => (s || "").trim();
       list = list.filter(r => {
-        return filters.locations.some(sel => {
-          const matchPref = (r.prefecture && sel.pref === r.prefecture);
-          const matchCity  = (r.city && sel.city && r.city === sel.city);
-          if (sel.type === "pref") return matchPref;
-          if (sel.type === "city") return matchPref && matchCity;
-          return false;
-        });
+        const target = `${normalize(r.prefecture)} ${normalize(r.city)} ${normalize(r.address)}`;
+        return filters.locations.some(loc => target.includes(normalize(loc)));
       });
     }
 
+
     // 🔸 職種 — OR（カテゴリ配列との一致）
-    if (filters.jobCategories && filters.jobCategories.length > 0) {
-      list = list.filter(r => r.categories.some(c => filters.jobCategories.includes(c)));
+    const normalize = s => s.replace(/\s+/g, "").trim();
+
+    if (filters.jobCategories?.length) {
+      list = list.filter(r =>
+        r.categories.some(c =>
+          filters.jobCategories.some(sel => normalize(c) === normalize(sel))
+        )
+      );
     }
 
     // 🔸 こだわり条件 — OR
@@ -145,6 +148,31 @@ const DataService = {
       "九州・沖縄": ["福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"]
     };
 
+    const JOB_CATEGORIES = [
+      "営業・販売",
+      "経営・事業企画・人事・事務",
+      "IT・Web・ゲームエンジニア",
+      "メディア・クリエイター",
+      "エンジニアリング・設計開発",
+      "製造・工場",
+      "マーケティング・広告・宣伝",
+      "飲食・フードサービス",
+      "旅行・レジャー・イベント",
+      "ビューティー・生活サービス",
+      "倉庫・物流管理",
+      "ドライバー・配送スタッフ",
+      "整備・修理",
+      "清掃・美化",
+      "警備・保安",
+      "建設・土木・施工",
+      "金融・財務・会計",
+      "法務・法律",
+      "医療・看護師・薬剤師",
+      "介護・福祉",
+      "保育士・教員・薬剤師",
+      "農林漁業"
+    ];
+
     const citiesByPref = {};
     rows.forEach(r => {
       if (!r.prefecture) return;
@@ -160,6 +188,15 @@ const DataService = {
     const ANNUALS = ["200","300","400","500","600","700","800","900","1000"]; // 万円
     const EMPLOYMENTS = ["正社員","派遣社員","業務委託","契約社員","アルバイト"];
 
-    return { REGION_PREFS, citiesByPref, jobCategories, preferences, POPULAR, ANNUALS, EMPLOYMENTS };
+    return {
+      REGION_PREFS,
+      citiesByPref,
+      jobCategories: JOB_CATEGORIES, // ←ここを固定リストに変更
+      preferences,
+      POPULAR,
+      ANNUALS,
+      EMPLOYMENTS
+    };
   }
 };
+

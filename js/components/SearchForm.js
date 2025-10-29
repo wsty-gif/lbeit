@@ -8,7 +8,7 @@ class SearchForm {
     this.state = {
       keyword: "",
       locations: [],        // [{type:'pref', pref:'京都府'}] or [{type:'city', pref:'京都府', city:'京都市'}]
-      jobCategories: [],     // 職種カテゴリ
+      jobs: [],     // 職種カテゴリ
       preferences: [],       // こだわり条件
       popular: [],           // 人気条件
       annualMin: "",         // 年収（200〜1000）
@@ -1156,21 +1156,22 @@ buildPrefPage() {
  * 検索実行
  * ------------------------------ */
 async applySearch() {
+  // 🔹 フィルター組み立て
   const filters = {
     keyword: this.state.keyword || "",
     locations: this.state.locations || [],
-    jobCategories: this.state.jobs || [],
-    preferences: this.state.prefs || [],
-    popular: Array.from(
-      this.el.querySelectorAll(".pop-opt input:checked")
-    ).map(i => i.parentElement.dataset.value),
+    jobCategories: this.state.jobCategories || [],
+    preferences: this.state.preferences || [],
     employments: Array.from(
       this.el.querySelectorAll(".emp-opt input:checked")
     ).map(i => i.parentElement.dataset.value),
-    annualMin: this.state.income ? Number(this.state.income) : null // ✅ 年収
+    popular: Array.from(
+      this.el.querySelectorAll(".pop-opt input:checked")
+    ).map(i => i.parentElement.dataset.value), // ✅ 人気の条件を取得
+    annualMin: this.state.income ? Number(this.state.income) : null,
   };
 
-  console.log("🔍 Search Filters:", filters); // ←ここでannualMinを確認できる
+  console.log("🔍 Search Filters:", filters);
 
   try {
     const results = await DataService.search(filters);
@@ -1179,7 +1180,6 @@ async applySearch() {
     console.error("❌ 検索エラー:", err);
   }
 }
-
 
 
 /* ------------------------------
@@ -1200,7 +1200,7 @@ buildIncomeSlide() {
     overlay.addEventListener("touchmove", e => e.preventDefault(), { passive:false });
     overlay.addEventListener("wheel", e => e.preventDefault(), { passive:false });
     // オーバーレイタップで閉じる（不要ならコメントアウト）
-    overlay.addEventListener("click", () => closeSlide());
+    // overlay.addEventListener("click", () => closeSlide());
     document.body.appendChild(overlay);
   }
 
@@ -1283,10 +1283,12 @@ const enableBodyScroll = () => {
   const markSelected = () => {
     const current = this.state.annualMin || "";
     slide.querySelectorAll(".inc-opt").forEach(opt => {
-      const checked = (opt.dataset.val === current);
-      const checkEl = opt.querySelector(".inc-check");
-      opt.style.background = checked ? "rgba(229,57,53,0.08)" : "transparent";
-      if (checkEl) checkEl.style.visibility = checked ? "visible" : "hidden";
+      opt.addEventListener("click", () => {
+        const val = opt.dataset.val;
+        openBtn.textContent = val;
+        this.state.income = val.replace("万以上", ""); // 例: "300" を保存
+        closeSlide();  // ← 必ずこれを呼ぶ（overlay を非表示＆body を復帰）
+      });
     });
   };
 
