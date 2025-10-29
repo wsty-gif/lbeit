@@ -1,5 +1,5 @@
 /* ===========================================
- * 🔧 Googleスプレッドシート連携 DataService
+ * 🔧 Googleスプレッドシート連携 DataService（完全修正版）
  * =========================================== */
 
 const SPREADSHEET_JSON_URL =
@@ -9,7 +9,7 @@ const DataService = {
   _cache: null,
 
   // =========================================================
-  // 🔹 データを取得（Apps Script JSON API）
+  // 🔹 データ取得（Apps Script JSON API）
   // =========================================================
   async load() {
     if (this._cache) return this._cache;
@@ -21,6 +21,13 @@ const DataService = {
       const data = await res.json();
       const norm = (v) => (v || "").toString().trim();
       const splitCsv = (v) => norm(v).split(",").map(s => s.trim()).filter(Boolean);
+
+      // 年収表記「300万以上」などから数値だけを抽出
+      const extractAnnual = (v) => {
+        if (!v) return 0;
+        const m = v.toString().match(/(\d+)/);
+        return m ? parseInt(m[1], 10) : 0;
+      };
 
       const rows = data.map((r) => ({
         id: norm(r["id"]),
@@ -37,7 +44,8 @@ const DataService = {
         jobLabel: norm(r["職種表示文"]),
         employment: norm(r["雇用形態"]),
         wage: parseInt(norm(r["時給"]) || "0", 10) || 0,
-        annual: parseInt(norm(r["年収目安"]) || "0", 10) || 0,
+        annualRaw: norm(r["年収目安"]),
+        annual: extractAnnual(r["年収目安"]),
         timeShort: norm(r["勤務時間概要"]),
         timeDetail: norm(r["勤務時間詳細"]),
         payDetail: norm(r["給与詳細"]),
@@ -58,14 +66,14 @@ const DataService = {
   },
 
   // =========================================================
-  // 🔎 検索処理
+  // 🔹 検索処理（AND/OR対応版）
   // =========================================================
   async search(filters) {
     const rows = await this.load();
     let list = rows.slice();
 
-    // キーワード（店名/駅/カテゴリ/職種表示文/市区町村/住所/こだわり）
-    if (filters.keyword) {
+    // 🔸 キーワード（店名/駅/職種/住所/こだわりを横断検索）
+    if (filters.keyword && filters.keyword.trim() !== "") {
       const q = filters.keyword.toLowerCase();
       list = list.filter(r =>
         [r.name, r.station, r.jobLabel, r.city, r.address, ...r.categories, ...r.features]
@@ -73,41 +81,47 @@ const DataService = {
       );
     }
 
-    // 勤務地 — OR 検索
-    if (filters.locations?.length) {
+    // 🔸 勤務地（都道府県・市区町村）— OR
+    if (filters.locations && filters.locations.length > 0) {
       list = list.filter(r => {
-        const label = r.prefecture + (r.city ? " " + r.city : "");
         return filters.locations.some(sel => {
-          if (sel.type === 'pref') return r.prefecture === sel.pref;
-          return r.prefecture === sel.pref && r.city === sel.city;
-        }) || filters.locations.some(sel => label.includes(sel.free || ""));
+          const matchPref = (r.prefecture && sel.pref === r.prefecture);
+          const matchCity  = (r.city && sel.city && r.city === sel.city);
+          if (sel.type === "pref") return matchPref;
+          if (sel.type === "city") return matchPref && matchCity;
+          return false;
+        });
       });
     }
 
-    // 職種 — OR
-    if (filters.jobCategories?.length) {
+    // 🔸 職種 — OR（カテゴリ配列との一致）
+    if (filters.jobCategories && filters.jobCategories.length > 0) {
       list = list.filter(r => r.categories.some(c => filters.jobCategories.includes(c)));
     }
 
-    // こだわり条件 — OR
-    if (filters.preferences?.length) {
+    // 🔸 こだわり条件 — OR
+    if (filters.preferences && filters.preferences.length > 0) {
       list = list.filter(r => r.features.some(f => filters.preferences.includes(f)));
     }
 
-    // 人気の条件 — OR
-    if (filters.popular?.length) {
+    // 🔸 人気条件 — OR（こだわり統合）
+    if (filters.popular && filters.popular.length > 0) {
       list = list.filter(r => r.features.some(f => filters.popular.includes(f)));
     }
 
-    // 年収（単位: 万円）
-    if (filters.annualMin) {
-      list = list.filter(r => r.annual && r.annual >= Number(filters.annualMin));
+    // 🔸 年収（「200」「300」等：指定値より上のみ表示）
+    if (filters.annualMin && filters.annualMin !== "") {
+      const minVal = Number(filters.annualMin);
+      list = list.filter(r => {
+        const val = r.annual || 0;
+        return val > minVal; // ✅ 「以上」→「超」に修正
+      });
     }
 
-    // 雇用形態 — OR
-    if (filters.employments?.length) {
+    // 🔸 雇用形態 — OR（「正社員」「アルバイト」など）
+    if (filters.employments && filters.employments.length > 0) {
       list = list.filter(r => {
-        const vals = (r.employment || "").split(",").map(s => s.trim());
+        const vals = r.employment.split(",").map(s => s.trim());
         return vals.some(v => filters.employments.includes(v));
       });
     }
@@ -116,7 +130,7 @@ const DataService = {
   },
 
   // =========================================================
-  // 🔸 UI用 distinct データ（一覧候補）
+  // 🔹 distincts()：UI用データ整形
   // =========================================================
   async distincts() {
     const rows = await this.load();

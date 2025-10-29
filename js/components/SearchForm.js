@@ -7,18 +7,20 @@ class SearchForm {
     // 検索条件（確定値）
     this.state = {
       keyword: "",
-      locations: [],
-      jobs: [],
-      prefs: [],
-      income: ""
+      locations: [],        // [{type:'pref', pref:'京都府'}] or [{type:'city', pref:'京都府', city:'京都市'}]
+      jobCategories: [],     // 職種カテゴリ
+      preferences: [],       // こだわり条件
+      popular: [],           // 人気条件
+      annualMin: "",         // 年収（200〜1000）
+      employments: []        // 雇用形態（正社員・アルバイトなど）
     };
-
 
     // 勤務地ページの一時選択（適用前）
     this._tempLoc = new Set();
 
     this.render();
   }
+
 
   /* ------------------------------
    * 初期描画
@@ -113,7 +115,7 @@ class SearchForm {
                 text-align:left;
                 background:#fff;
                 font-size:0.95rem;
-              ">${this.state.income || "未選択"}</button>
+              ">${this.state.annualMin || "未選択"}</button>
             </div>
           </div>
 
@@ -406,8 +408,8 @@ updateConditionLabels() {
 
   const fields = [
     { key: "loc", val: locText },
-    { key: "job", val: format(this.state.jobs) },
-    { key: "pref", val: format(this.state.prefs) }
+    { key: "job", val: format(this.state.jobCategories) },
+    { key: "pref", val: format(this.state.preferences) }
   ];
 
   fields.forEach(({ key, val }) => {
@@ -456,7 +458,7 @@ clearCategoryCondition(key) {
     this.updateRegionDots(REGION_PREFS);
 
   } else if (key === "job") {
-    this.state.jobs = [];
+    this.state.jobCategories = [];
     const page = document.getElementById("page-job");
     if (page) {
       page.querySelectorAll(".job-chk").forEach(cb => {
@@ -472,7 +474,7 @@ clearCategoryCondition(key) {
     }
 
   } else if (key === "pref") {
-    this.state.prefs = [];
+    this.state.preferences = [];
     const page = document.getElementById("page-pref");
     if (page) {
       page.querySelectorAll(".pref-chk").forEach(cb => {
@@ -964,13 +966,13 @@ clearCategoryCondition(key) {
     document.getElementById("back-job").onclick=()=>this.closeSlide("job");
 
     document.getElementById("clear-job").onclick=()=>{
-      this.state.jobs = [];
+      this.state.jobCategories = [];
       document.querySelectorAll('#page-job .job-chk').forEach(cb=>cb.checked=false);
       this.updateConditionLabels();
     };
     document.getElementById("apply-job").onclick=()=>{
       const checked=Array.from(document.querySelectorAll("#page-job .job-chk:checked")).map(c=>c.value);
-      this.state.jobs=checked;
+      this.state.jobCategories=checked;
       this.updateConditionLabels();
       this.closeSlide("job");
     };
@@ -1091,7 +1093,7 @@ buildPrefPage() {
   // チェック状態同期
   content.querySelectorAll(".pref-chk").forEach(cb => {
     const label = cb.closest("label.pref-option");
-    if (this.state.prefs.includes(cb.value)) {
+    if (this.state.preferences.includes(cb.value)) {
       cb.checked = true;
       label.style.background = "rgba(229,57,53,0.1)";
       label.style.borderColor = "#e53935";
@@ -1104,19 +1106,19 @@ buildPrefPage() {
         label.style.background = "rgba(229,57,53,0.1)";
         label.style.borderColor = "#e53935";
         label.style.color = "#000";
-        if (!this.state.prefs.includes(cb.value)) this.state.prefs.push(cb.value);
+        if (!this.state.preferences.includes(cb.value)) this.state.preferences.push(cb.value);
       } else {
         label.style.background = "#fff";
         label.style.borderColor = "#ccc";
         label.style.color = "#000";
-        this.state.prefs = this.state.prefs.filter(v => v !== cb.value);
+        this.state.preferences = this.state.preferences.filter(v => v !== cb.value);
       }
     });
   });
 
   // ✅ こだわり条件スライド内「条件をクリア」完全修正版
   document.getElementById("clear-pref").onclick = () => {
-    this.state.prefs = [];
+    this.state.preferences = [];
 
     const content = document.querySelector("#page-pref .slide-inner #pref-content");
     if (!content) return;
@@ -1144,7 +1146,7 @@ buildPrefPage() {
   // ✅ 反映ボタン
   document.getElementById("apply-pref").onclick = () => {
     const checked = Array.from(content.querySelectorAll(".pref-chk:checked")).map(c => c.value);
-    this.state.prefs = checked;
+    this.state.preferences = checked;
     this.updateConditionLabels();
     this.closeSlide("pref");
   };
@@ -1174,12 +1176,12 @@ buildPrefPage() {
           })
         : true;
 
-      const passJob=this.state.jobs.length
-        ? (job.jobCategories||[]).some(j=> this.state.jobs.includes(j))
+      const passJob=this.state.jobCategories.length
+        ? (job.jobCategories||[]).some(j=> this.state.jobCategories.includes(j))
         : true;
 
-      const passPref=this.state.prefs.length
-        ? (job.tags||[]).some(t=> this.state.prefs.includes(t))
+      const passPref=this.state.preferences.length
+        ? (job.tags||[]).some(t=> this.state.preferences.includes(t))
         : true;
 
       return passKey && passLoc && passJob && passPref;
@@ -1285,7 +1287,7 @@ buildIncomeSlide() {
   };
 
   const markSelected = () => {
-    const current = this.state.income || "";
+    const current = this.state.annualMin || "";
     slide.querySelectorAll(".inc-opt").forEach(opt => {
       const checked = (opt.dataset.val === current);
       const checkEl = opt.querySelector(".inc-check");
@@ -1319,7 +1321,7 @@ buildIncomeSlide() {
   slide.querySelectorAll(".inc-opt").forEach(opt => {
     opt.addEventListener("click", () => {
       const val = opt.dataset.val;
-      this.state.income = val;              // ✅ 状態保持
+      this.state.annualMin = val;              // ✅ 状態保持
       openBtn.textContent = val;            // ✅ ボタン表示更新
       markSelected();                       // ✅ 選択表示更新（連打対応）
       closeSlide();                         // ✅ 閉じる
