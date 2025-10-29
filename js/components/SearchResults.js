@@ -49,7 +49,9 @@ class SearchResults {
     return `
       <div class="job-card bg-white rounded-xl shadow hover:-translate-y-0.5 transition cursor-pointer overflow-hidden" data-id="${acc.id}">
         <div class="relative">
-          <img src="${acc.image || "https://via.placeholder.com/800x500?text=No+Image"}" alt="${acc.name}" class="w-full h-44 object-cover">
+        <img src="${(acc.images && acc.images.length > 0 ? acc.images[0] : 'https://via.placeholder.com/800x500?text=No+Image')}"
+            alt="${acc.name}"
+            class="w-full h-44 object-cover">
         </div>
         <div class="p-4">
           <h3 class="text-base font-bold text-gray-900 mb-1 line-clamp-2">${acc.name}</h3>
