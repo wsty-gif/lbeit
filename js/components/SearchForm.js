@@ -9,8 +9,10 @@ class SearchForm {
       keyword: "",
       locations: [],
       jobs: [],
-      prefs: []
+      prefs: [],
+      income: ""
     };
+
 
     // 勤務地ページの一時選択（適用前）
     this._tempLoc = new Set();
@@ -50,6 +52,102 @@ class SearchForm {
           ${this.condRow("loc", "勤務地", "fa-solid fa-location-dot")}
           ${this.condRow("job", "職種", "fa-solid fa-briefcase")}
           ${this.condRow("pref", "こだわり条件", "fa-solid fa-star")}
+          <!-- ▼ 人気の条件 -->
+          <div id="popular-conditions" style="background:#f5f5f5;padding:12px 10px;border-radius:10px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+              <i class="fa-solid fa-fire" style="color:#e53935;"></i>
+              <span style="font-weight:600;">人気の条件</span>
+            </div>
+
+            <!-- ✅ 修正版：チェックボックス付き -->
+            <div id="popular-tags" style="display:flex;flex-wrap:wrap;gap:8px;">
+              ${[
+                "未経験歓迎", "土日祝休み", "完全週休２日制", "年間休日１２０日以上", "在宅勤務（リモートワーク）OK",
+                "転勤なし", "服装自由", "年齢不問", "学歴不問", "語学力を活かせる"
+              ].map(tag => `
+                <label class="pop-opt" data-value="${tag}" style="
+                  display:inline-flex;
+                  align-items:center;
+                  gap:6px;
+                  padding:6px 10px;
+                  border:1px solid #ccc;
+                  border-radius:10px;
+                  background:#fff;
+                  font-size:0.9rem;
+                  cursor:pointer;
+                  user-select:none;
+                ">
+                  <!-- ✅ チェックボックス表示 -->
+                  <input type="checkbox" style="width:16px;height:16px;accent-color:#e53935;">
+                  <span>${tag}</span>
+                </label>
+              `).join("")}
+            </div>
+          </div>
+
+
+          <!-- ▼ 年収 -->
+          <div id="income-cond" style="margin-top:16px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <i class="fa-solid fa-dollar-sign" style="color:#000;"></i>
+              <span style="font-weight:600;">年収</span>
+            </div>
+            <div style="margin-top:6px;">
+              <button id="open-income" style="
+                width:100%;
+                border:1px solid #ccc;
+                border-radius:8px;
+                padding:10px;
+                text-align:left;
+                background:#fff;
+                font-size:0.95rem;
+              ">${this.state.income || "未選択"}</button>
+            </div>
+          </div>
+
+          <!-- ▼ 雇用形態 -->
+          <div id="employment-cond" style="margin-top:16px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <i class="fa-solid fa-id-card" style="color:#000;"></i>
+              <span style="font-weight:600;">雇用形態</span>
+            </div>
+
+            <div id="employment-tags" style="
+              display:grid;
+              grid-template-columns:1fr 1fr;
+              gap:10px;
+              margin-top:8px;
+            ">
+              ${["正社員","アルバイト","派遣社員","業務委託","契約社員"].map(tag => `
+                <label class="emp-opt" data-value="${tag}" style="
+                  display:flex;
+                  align-items:center;
+                  justify-content:flex-start;
+                  gap:8px;
+                  border:1px solid #ccc;
+                  border-radius:10px;
+                  padding:8px 12px;
+                  background:#fff;
+                  font-size:0.95rem;
+                  cursor:pointer;
+                  user-select:none;
+                  box-sizing:border-box;
+                ">
+                  <input type="checkbox" style="
+                    appearance:none;
+                    width:16px;
+                    height:16px;
+                    border:1px solid #aaa;
+                    border-radius:3px;
+                    margin:0;
+                    position:relative;
+                  ">
+                  <span>${tag}</span>
+                </label>
+              `).join("")}
+            </div>
+          </div>
+
         </div>
 
         <!-- ✅ フッター（常時固定） -->
@@ -114,6 +212,34 @@ class SearchForm {
 
     // ラベル更新
     this.updateConditionLabels();
+
+    // 人気の条件（チェックUI切り替え）
+    this.el.querySelectorAll(".pop-opt").forEach(label => {
+      const cb = label.querySelector("input[type='checkbox']");
+      label.addEventListener("click", e => {
+        // チェック操作後に見た目反映
+        // （クリックのたびに反転）
+        cb.checked = !cb.checked;
+        label.style.background = cb.checked ? "rgba(229,57,53,0.1)" : "#fff";
+        label.style.borderColor = cb.checked ? "#e53935" : "#ccc";
+        e.stopPropagation();
+      });
+    });
+
+    // 雇用形態（チェックUI切り替え）
+    this.el.querySelectorAll(".emp-opt").forEach(label => {
+      label.addEventListener("click", () => {
+        const input = label.querySelector("input");
+        input.checked = !input.checked;
+        label.style.background = input.checked ? "rgba(229,57,53,0.1)" : "#fff";
+        label.style.borderColor = input.checked ? "#e53935" : "#ccc";
+      });
+    });
+
+
+    // 年収スライド構築
+    this.buildIncomeSlide();
+
   }
 
 // ✅ condRow() と updateConditionLabels() の最新版
@@ -929,6 +1055,152 @@ buildPrefPage() {
 
     this.onSearch(filtered);
   }
+
+/* ------------------------------
+ * 年収スライド（×ボタン／背面操作完全ブロック／選択状態表示）
+ * ------------------------------ */
+buildIncomeSlide() {
+  // 🔧 オーバーレイ（背面タップ・クリック完全ブロック）
+  let overlay = document.getElementById("page-income-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "page-income-overlay";
+    overlay.style.cssText = `
+      position:fixed; inset:0; background:rgba(0,0,0,.25);
+      z-index:2999; display:none; pointer-events:auto;
+      touch-action:none; overscroll-behavior:contain;
+    `;
+    // 背面スクロール＆タップを完全阻止
+    overlay.addEventListener("touchmove", e => e.preventDefault(), { passive:false });
+    overlay.addEventListener("wheel", e => e.preventDefault(), { passive:false });
+    // オーバーレイタップで閉じる（不要ならコメントアウト）
+    overlay.addEventListener("click", () => closeSlide());
+    document.body.appendChild(overlay);
+  }
+
+  // 🔧 スライド
+  let slide = document.getElementById("page-income");
+  if (!slide) {
+    slide = document.createElement("div");
+    slide.id = "page-income";
+    slide.style.cssText = `
+      position:fixed; left:0; bottom:0; width:100%;
+      height:75%; /* 80%→75% にして下の余白を詰める */
+      background:#fff; border-top-left-radius:16px; border-top-right-radius:16px;
+      transform:translateY(100%); transition:transform .3s ease;
+      z-index:3000; display:flex; flex-direction:column; box-shadow:0 -4px 10px rgba(0,0,0,.1);
+      overscroll-behavior:contain;
+    `;
+
+    const options = ["200万以上","300万以上","400万以上","500万以上","600万以上","700万以上","800万以上","900万以上","1000万以上"];
+
+    slide.innerHTML = `
+      <div style="position:relative; padding:12px 44px; text-align:center; font-weight:600; border-bottom:1px solid #ddd;">
+        年収
+        <!-- ×ボタン -->
+        <button id="close-income" style="
+          position:absolute; right:12px; top:6px;
+          background:none; border:none; font-size:22px; cursor:pointer; color:#666;
+        ">×</button>
+      </div>
+
+      <div id="income-list" style="
+        flex:1; overflow-y:auto; padding:10px 16px 18px; /* 下部余白控えめ */
+        -webkit-overflow-scrolling:touch;
+      ">
+        ${options.map((val, i) => `
+          <div class="inc-opt" data-val="${val}" style="
+            display:flex; align-items:center; justify-content:flex-start; gap:8px;
+            padding:14px 10px; ${i === options.length - 1 ? "border-bottom:none;" : "border-bottom:1px solid #eee;"}
+            cursor:pointer; border-radius:8px;
+          ">
+            <!-- 選択マーク（初回は非表示。選択時だけ表示＆赤色） -->
+            <span class="inc-check" style="width:18px; text-align:center; visibility:hidden; color:#e53935 !important;">✔</span>
+            <span class="inc-label" style="font-size:1rem;">${val}</span>
+          </div>
+        `).join("")}
+      </div>
+    `;
+    document.body.appendChild(slide);
+  }
+
+  const openBtn = this.el.querySelector("#open-income");
+  let scrollY = 0;
+
+  // 背面スクロール＆操作を完全固定
+  const disableBodyScroll = () => {
+    scrollY = window.scrollY || 0;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+    // 追加：背面要素のポインター無効化（確実に触れないように）
+    document.documentElement.style.pointerEvents = "none";
+    overlay.style.pointerEvents = "auto"; // オーバーレイだけ受け付ける
+  };
+
+  const enableBodyScroll = () => {
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.width = "";
+    document.body.style.overflow = "";
+    document.documentElement.style.pointerEvents = ""; // 復帰
+    window.scrollTo(0, scrollY);
+  };
+
+  const markSelected = () => {
+    const current = this.state.income || "";
+    slide.querySelectorAll(".inc-opt").forEach(opt => {
+      const checked = (opt.dataset.val === current);
+      const checkEl = opt.querySelector(".inc-check");
+      opt.style.background = checked ? "rgba(229,57,53,0.08)" : "transparent";
+      if (checkEl) checkEl.style.visibility = checked ? "visible" : "hidden";
+    });
+  };
+
+  const openSlide = () => {
+    overlay.style.display = "block";
+    disableBodyScroll();
+    // 選択済みを反映
+    markSelected();
+    // スライド表示
+    slide.style.transform = "translateY(0)";
+  };
+
+  const closeSlide = () => {
+    slide.style.transform = "translateY(100%)";
+    overlay.style.display = "none";
+    setTimeout(() => enableBodyScroll(), 300);
+  };
+
+  // オープン
+  openBtn.addEventListener("click", () => openSlide());
+
+  // × ボタン
+  slide.querySelector("#close-income").addEventListener("click", closeSlide);
+
+  // オプション選択
+  slide.querySelectorAll(".inc-opt").forEach(opt => {
+    opt.addEventListener("click", () => {
+      const val = opt.dataset.val;
+      this.state.income = val;              // ✅ 状態保持
+      openBtn.textContent = val;            // ✅ ボタン表示更新
+      markSelected();                       // ✅ 選択表示更新（連打対応）
+      closeSlide();                         // ✅ 閉じる
+    });
+  });
+
+  // スライドの内部は操作可能・背面は操作不可
+  slide.style.pointerEvents = "auto";
+  overlay.style.pointerEvents = "auto";
+}
+
+
+
 }
 
 /* ===== ヘルパ ===== */
@@ -937,3 +1209,5 @@ buildPrefPage() {
 function fixCity(c){
   return c?.replace(/^京都市/,'').replace(/^大阪市/,'').replace(/^神戸市/,'');
 }
+
+
