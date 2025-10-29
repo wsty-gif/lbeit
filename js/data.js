@@ -114,7 +114,7 @@ const DataService = {
       const minVal = Number(filters.annualMin);
       list = list.filter(r => {
         const val = r.annual || 0;
-        return val > minVal; // ✅ 「以上」→「超」に修正
+        return val >= minVal; // ✅ 「以上」→「超」に修正
       });
     }
 

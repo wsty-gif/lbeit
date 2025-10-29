@@ -13,11 +13,11 @@ const app = async () => {
     modalEl.classList.remove("hidden");
   });
 
-  const onSearch = async (filters) => {
-    const data = await DataService.search(filters);
+  // ✅ DataService.search は SearchForm 側で実行しているので不要
+  const onSearch = (data) => {
     results.show(data);
-    listEl.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
 
   new SearchForm(formEl, onSearch);
 

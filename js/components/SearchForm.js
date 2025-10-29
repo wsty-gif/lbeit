@@ -1152,43 +1152,35 @@ buildPrefPage() {
   };
 }
 
+/* ------------------------------
+ * 検索実行
+ * ------------------------------ */
+async applySearch() {
+  const filters = {
+    keyword: this.state.keyword || "",
+    locations: this.state.locations || [],
+    jobCategories: this.state.jobs || [],
+    preferences: this.state.prefs || [],
+    popular: Array.from(
+      this.el.querySelectorAll(".pop-opt input:checked")
+    ).map(i => i.parentElement.dataset.value),
+    employments: Array.from(
+      this.el.querySelectorAll(".emp-opt input:checked")
+    ).map(i => i.parentElement.dataset.value),
+    annualMin: this.state.income ? Number(this.state.income) : null // ✅ 年収
+  };
 
+  console.log("🔍 Search Filters:", filters); // ←ここでannualMinを確認できる
 
-
-
-  /* ------------------------------
-   * 検索実行
-   * ------------------------------ */
-  async applySearch(){
-    const all=await DataService.load();
-    const k=(this.state.keyword||"").toLowerCase();
-
-    const filtered=all.filter(job=>{
-      const text=`${job.name} ${job.station} ${job.jobCategories?.join(" ")} ${job.jobDisplay} ${job.address}`.toLowerCase();
-      const passKey=k?text.includes(k):true;
-
-      const passLoc=this.state.locations.length
-        ? this.state.locations.some(loc=>{
-            const [pref, city, ward] = loc.split("/");
-            const s = `${job.prefecture}/${job.city}`;
-            if (ward) return `${job.prefecture}/${job.city}/${job.ward||""}`.includes(loc);
-            return s.includes(city) || job.prefecture===pref;
-          })
-        : true;
-
-      const passJob=this.state.jobCategories.length
-        ? (job.jobCategories||[]).some(j=> this.state.jobCategories.includes(j))
-        : true;
-
-      const passPref=this.state.preferences.length
-        ? (job.tags||[]).some(t=> this.state.preferences.includes(t))
-        : true;
-
-      return passKey && passLoc && passJob && passPref;
-    });
-
-    this.onSearch(filtered);
+  try {
+    const results = await DataService.search(filters);
+    this.onSearch(results);
+  } catch (err) {
+    console.error("❌ 検索エラー:", err);
   }
+}
+
+
 
 /* ------------------------------
  * 年収スライド（×ボタン／背面操作完全ブロック／選択状態表示）
@@ -1275,16 +1267,18 @@ buildIncomeSlide() {
     overlay.style.pointerEvents = "auto"; // オーバーレイだけ受け付ける
   };
 
-  const enableBodyScroll = () => {
-    document.body.style.position = "";
-    document.body.style.top = "";
-    document.body.style.left = "";
-    document.body.style.right = "";
-    document.body.style.width = "";
-    document.body.style.overflow = "";
-    document.documentElement.style.pointerEvents = ""; // 復帰
-    window.scrollTo(0, scrollY);
-  };
+const enableBodyScroll = () => {
+  document.body.style.position = "";
+  document.body.style.top = "";
+  document.body.style.left = "";
+  document.body.style.right = "";
+  document.body.style.width = "";
+  document.body.style.overflow = "";
+  document.documentElement.style.pointerEvents = "";
+  overlay.style.display = "none";  // ← 念のため再非表示
+  overlay.style.pointerEvents = "none";
+  window.scrollTo(0, scrollY);
+};
 
   const markSelected = () => {
     const current = this.state.annualMin || "";
@@ -1305,11 +1299,13 @@ buildIncomeSlide() {
     slide.style.transform = "translateY(0)";
   };
 
-  const closeSlide = () => {
-    slide.style.transform = "translateY(100%)";
-    overlay.style.display = "none";
-    setTimeout(() => enableBodyScroll(), 300);
-  };
+const closeSlide = () => {
+  slide.style.transform = "translateY(100%)";
+  // ✅ display:none はアニメーション終了後に確実に実行
+  setTimeout(() => {
+    enableBodyScroll();
+  }, 310);
+};
 
   // オープン
   openBtn.addEventListener("click", () => openSlide());
@@ -1319,13 +1315,14 @@ buildIncomeSlide() {
 
   // オプション選択
   slide.querySelectorAll(".inc-opt").forEach(opt => {
-    opt.addEventListener("click", () => {
-      const val = opt.dataset.val;
-      this.state.annualMin = val;              // ✅ 状態保持
-      openBtn.textContent = val;            // ✅ ボタン表示更新
-      markSelected();                       // ✅ 選択表示更新（連打対応）
-      closeSlide();                         // ✅ 閉じる
-    });
+opt.addEventListener("click", () => {
+  const val = opt.dataset.val;
+  openBtn.textContent = val;
+  this.state.income = val.replace("万以上", ""); // ✅ 数値部分だけ保存
+  slide.style.transform = "translateY(100%)";
+  document.body.style.overflow = ""; // ←もし禁止しているなら解除
+});
+
   });
 
   // スライドの内部は操作可能・背面は操作不可
